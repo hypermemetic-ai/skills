@@ -1,0 +1,79 @@
+use {{PROJECT_NAME_SNAKE}}::build_rpc;
+use plexus_transport::TransportServer;
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(name = "{{PROJECT_NAME}}")]
+#[command(about = "{{DESCRIPTION}}")]
+struct Args {
+    /// Run in stdio mode (MCP-compatible)
+    #[arg(long)]
+    stdio: bool,
+
+    /// WebSocket port
+    #[arg(short, long, default_value = "{{PORT}}")]
+    port: u16,
+
+    /// Disable MCP HTTP server
+    #[arg(long)]
+    no_mcp: bool,
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+
+    let filter = if args.stdio {
+        tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn"))
+    } else {
+        tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(
+                "warn,{{PROJECT_NAME_SNAKE}}=debug"
+            ))
+    };
+
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .init();
+
+    let hub = build_rpc().await;
+
+    let activations = hub.list_activations_info();
+    tracing::info!("Activations ({}):", activations.len());
+    for a in &activations {
+        tracing::info!("  {} v{} - {}", a.namespace, a.version, a.description);
+        for method in &a.methods {
+            tracing::info!("    - {}_{}", a.namespace, method);
+        }
+    }
+
+    let rpc_converter = |arc| {
+        use plexus_core::plexus::DynamicHub;
+        DynamicHub::arc_into_rpc_module(arc)
+            .map_err(|e| anyhow::anyhow!("Failed to create RPC module: {}", e))
+    };
+
+    let mut builder = TransportServer::builder(hub, rpc_converter);
+
+    if args.stdio {
+        builder = builder.with_stdio();
+    } else {
+        builder = builder.with_websocket(args.port);
+        if !args.no_mcp {
+            builder = builder.with_mcp_http(args.port + 1);
+        }
+    }
+
+    if args.stdio {
+        tracing::info!("Starting stdio transport");
+    } else {
+        tracing::info!("WebSocket: ws://127.0.0.1:{}", args.port);
+        if !args.no_mcp {
+            tracing::info!("MCP HTTP:  http://127.0.0.1:{}/mcp", args.port + 1);
+        }
+    }
+
+    builder.build().await?.serve().await
+}

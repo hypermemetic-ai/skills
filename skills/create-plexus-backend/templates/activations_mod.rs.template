@@ -1,0 +1,5 @@
+// Re-export all activation modules
+// Add one line per plugin:
+//
+// pub mod {plugin_snake};
+// pub use {plugin_snake}::{Plugin};

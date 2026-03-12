@@ -1,0 +1,41 @@
+use super::types::{{PLUGIN}}Event;
+use async_stream::stream;
+use futures::Stream;
+
+/// {{PLUGIN}} activation
+#[derive(Clone)]
+pub struct {{PLUGIN}};
+
+impl {{PLUGIN}} {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for {{PLUGIN}} {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[plexus_macros::hub_methods(
+    namespace = "{{PLUGIN_SNAKE}}",
+    version = "1.0.0",
+    description = "{{PLUGIN_DESCRIPTION}}"
+)]
+impl {{PLUGIN}} {
+    #[plexus_macros::hub_method(
+        description = "Example method — replace with real implementation",
+        params(message = "A message to echo back")
+    )]
+    async fn hello(
+        &self,
+        message: String,
+    ) -> impl Stream<Item = {{PLUGIN}}Event> + Send + 'static {
+        stream! {
+            yield {{PLUGIN}}Event::Ok {
+                message: format!("Hello from {{PLUGIN_SNAKE}}: {}", message),
+            };
+        }
+    }
+}
