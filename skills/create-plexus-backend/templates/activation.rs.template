@@ -18,16 +18,21 @@ impl Default for {{PLUGIN}} {
     }
 }
 
-#[plexus_macros::hub_methods(
+#[plexus_macros::activation(
     namespace = "{{PLUGIN_SNAKE}}",
     version = "1.0.0",
     description = "{{PLUGIN_DESCRIPTION}}"
 )]
 impl {{PLUGIN}} {
-    #[plexus_macros::hub_method(
-        description = "Example method — replace with real implementation",
-        params(message = "A message to echo back")
-    )]
+    /// Example method — replace with real implementation.
+    ///
+    /// The `///` doc comment is the method's description in the generated
+    /// schema. The `#[plexus_macros::method]` attribute carries `params(...)`
+    /// docs for each parameter, plus `streaming` if the method yields more
+    /// than once. Do not duplicate the description into the macro.
+    #[plexus_macros::method(params(
+        message = "A message to echo back",
+    ))]
     async fn hello(
         &self,
         message: String,

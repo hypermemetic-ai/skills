@@ -1,6 +1,13 @@
+---
+name: strong-typing
+description: Use when a codebase passes bare `String`, `i64`, or `Uuid` for distinct domain concepts; when ticket contracts reference domain values by their raw type instead of a named one; or when a bug was caused by passing one identifier where another was expected. Introduces newtypes (with `#[serde(transparent)]`) and enums so the compiler catches misuse the type system was previously allowing silently.
+---
+
 # Skill: Strong Type a Domain
 
-Introduce newtypes for every distinct domain concept so the compiler catches misuse that string-typing allows silently.
+Newtypes are the type system's version of a sufficient statistic. A function taking `FormSlug` doesn't re-validate that the string is a slug — the evidence that it *is* a slug is carried in the type. Every downstream caller can condition on that evidence without re-deriving it.
+
+This is the same principle that ticket `## Evidence` sections apply at the documentation layer, but enforced by the compiler. Where ticket evidence asks reviewers to check the reasoning, type evidence asks the compiler to check it on every call site.
 
 ## When to use
 
@@ -10,7 +17,7 @@ When a codebase passes bare `String`, `i64`, or `Uuid` for values that have dist
 
 | Input | Description | Example |
 |-------|-------------|---------|
-| Domain concepts | The distinct identifiers and constrained values in the domain | WizardNodeId, FormSlug, StateId, IdentityRoot |
+| Domain concepts | The distinct identifiers and constrained values in the domain | `FormSlug`, `WizardNodeId`, `IdentityRoot`, `ActivationNamespace` |
 | Current representation | What Rust type they're currently stored as | `String`, `Uuid`, `i64` |
 | Where they flow | Which modules pass these values around | auth → storage → activation → wire |
 
@@ -67,7 +74,7 @@ pub enum IdentityRoot {
 
 Start at the storage layer (closest to the database), then work outward:
 
-1. Database query return types (change `String` → `FormSlug` in query_as tuples)
+1. Database query return types (change `String` → `FormSlug` in `query_as` tuples)
 2. Domain structs (change `pub slug: String` → `pub slug: FormSlug`)
 3. Function parameters (change `fn get(slug: &str)` → `fn get(slug: &FormSlug)`)
 4. Wire boundary (parse `String` → newtype at the activation layer)
@@ -75,7 +82,7 @@ Start at the storage layer (closest to the database), then work outward:
 
 ### 4. Update ticket contracts
 
-If tickets reference the domain concepts, update them to use the type names. "The table contains `WizardNodeId` values" not "the table contains text values." This makes contract violations between tickets visible at review time.
+If tickets reference the domain concepts, update them to use the type names. "The table contains `WizardNodeId` values" not "the table contains text values." This makes contract violations between tickets visible at review time and lets `## Evidence` sections cite type names rather than re-explain shape.
 
 ## Required traits for every newtype
 
@@ -94,11 +101,19 @@ If tickets reference the domain concepts, update them to use the type names. "Th
 
 - Free-text human-readable fields (names, descriptions, titles)
 - Temporary/local values that never cross a function boundary
-- Values already uniquely typed (like `uuid::Uuid` or a custom enum)
+- Values already uniquely typed (`uuid::Uuid` for one specific entity, a custom enum)
+
+## The boundary check
+
+Newtype validation belongs at the wire boundary — once. Inside the system, the type IS the proof. If you find yourself re-validating a `FormSlug` deep in the call stack, either:
+
+- The wire boundary isn't really validating (fix that), or
+- The newtype is too permissive and needs an invariant the constructor enforces (`FormSlug::try_new` returning `Result<Self, ParseError>`).
+
+A newtype that demands re-validation by every caller has lost its claim to be a sufficient statistic.
 
 ## Pointers
 
 - Convention: `~/CLAUDE.md` → "Strong Typing Rule"
-- Existing types in FormVeritas: `Sub`, `Sid`, `ValidOrigin`, `SecureTransport`, `ClientIp`, `TenantScope`
-- Planned types: `FormSlug`, `GoalId`, `ExtractionId`, `FieldPath` (IDN-35)
-- Planned types for STF: `WizardNodeId`, `StateId`, `TransitionId`, `IdentityRoot`, `Pathway`, `FormRole`
+- How tickets reference types in contracts: `../ticketing/SKILL.md` → Rule 9
+- Where to introduce them in a Plexus backend: at the activation method boundary in `<plugin>/types.rs` — see `../create-plexus-backend/SKILL.md`

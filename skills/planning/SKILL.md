@@ -1,6 +1,11 @@
+---
+name: planning
+description: Use when the user asks to plan an epic, break a goal into a DAG of tickets, or organize multi-step/multi-file work. Produces an epic directory under `plans/<EPIC>/` with an overview document and individual tickets, treats spikes as evidence sources whose results update the confidence prior on downstream tickets, and maximizes parallel fan-out across the dependency graph.
+---
+
 # Skill: Plan an Epic
 
-Break a large goal into a dependency DAG of tickets with explicit inputs, outputs, risks, and parallel execution paths. The plan is a program — tickets are functions, the DAG is the call graph, errors are contract violations between tickets.
+Break a large goal into a dependency DAG of tickets with explicit inputs, outputs, risks, and parallel execution paths. The plan is a program — tickets are functions, the DAG is the call graph, errors are contract violations between tickets, and **spikes are the evidence-gathering steps that resolve uncertainty before contracts are frozen**.
 
 ## When to use
 
@@ -10,10 +15,11 @@ When the user describes a multi-step goal that needs to be broken into implement
 
 | Input | Description | Example |
 |-------|-------------|---------|
-| Goal | What the user wants to achieve | "Replace hardcoded goals with USCIS wizard tree data" |
-| Constraints | What must not break | "The packages.goals API shape must be backward compatible" |
-| Domain context | External systems, APIs, legal/regulatory requirements | USCIS REST API, SOC2 controls, Keycloak realm structure |
-| Existing work | What's already built that this builds on | Form reference graph, TenantScope, ValidUser |
+| Goal | What the user wants to achieve | "Thread caller identity through Plexus RPC" |
+| Constraints | What must not break | "Existing unauthenticated activations must keep working" |
+| Domain context | External systems, APIs, regulatory requirements | jsonrpsee 0.26 connection state, cookie validation |
+| Existing work | What's already built that this builds on | Plexus dispatch, DynamicHub registration |
+| Risk tolerance | How much uncertainty the user accepts before requiring spikes | "Spike anything that depends on jsonrpsee internals" |
 
 ## Output
 
@@ -37,24 +43,34 @@ At every node in the DAG, ask: "can any of these blocked tickets run in parallel
 
 ### 4. Define inputs and outputs at every edge
 
-If ticket A unlocks ticket B, then A's acceptance criteria must pin exactly what B will read. This is the contract. If A's output shape changes, B's implementation breaks. Make the contract explicit — use strong types (domain newtypes, not bare strings) in the contract language.
+If ticket A unlocks ticket B, then A's acceptance criteria must pin exactly what B will read. **A's `## Evidence` section must record *why* the contract has that shape**, so that if A's contract is questioned later, the conversation starts from recorded reasoning rather than restarting cold. Use strong types (domain newtypes, not bare strings) in the contract language.
 
-### 5. Surface risks
+### 5. Set initial `confidence` per ticket
+
+For each ticket, set the planner's prior on whether the contract survives contact with reality:
+
+- `high` — every dependency is typed and tested; the shape is constrained by upstream contracts.
+- `medium` — default; the shape is reasonable but unverified.
+- `low` — significant unknowns; spike before promoting to Ready.
+
+A `low`-confidence ticket **must** have a spike in its `blocked_by`. Promoting a `low` ticket to Ready without a spike is a planning error.
+
+### 6. Surface risks → spikes
 
 For every ticket that touches an external system, an unstable API, or an unproven assumption, add a `## Risks` section. Each risk maps to:
-- A **spike** — a binary investigation (see the Spikes skill)
+- A **spike** — a binary investigation that produces structured evidence (see Spikes section)
 - A **fallback** — a degraded-but-acceptable contract revision
 - A **replanning trigger** — "if this fails, downstream tickets need rewriting"
 
-### 6. Check for design decisions
+### 7. Check for design decisions
 
 If any ticket requires a choice between multiple approaches, it's not ready for implementation. It either needs:
-- A spike ticket that resolves the choice
-- A decision pinned in the ticket text (the planner makes the call)
+- A spike ticket that resolves the choice (the spike's evidence picks the approach)
+- A decision pinned in the ticket text with the rationale recorded in `## Evidence`
 
-### 7. Write tickets in dependency order
+### 8. Write tickets in dependency order
 
-Start with the roots (no blocked_by), then write each ticket in topological order so you can reference upstream outputs in downstream inputs.
+Start with the roots (no `blocked_by`), then write each ticket in topological order so you can reference upstream outputs in downstream inputs.
 
 ## Epic overview format
 
@@ -70,11 +86,13 @@ unlocks: []
 ```
 
 Body:
+
 ```markdown
 ## Goal
-## Dependency DAG
+## Dependency DAG       # ASCII or mermaid
 ## Phase Breakdown
-## Tickets (table: id, summary, status)
+## Tickets              # table: id, summary, status, confidence
+## Risks → Spikes       # which spike addresses which risk
 ## Out of scope
 ```
 
@@ -83,57 +101,82 @@ Body:
 - **Parallel by default.** If two tickets CAN run simultaneously, the DAG MUST allow it.
 - **One decision per ticket.** Ambiguity in one ticket cascades to every downstream ticket.
 - **Contracts at every edge.** Ticket A's output is ticket B's input. Both must name the same shape.
+- **Evidence travels with the contract.** A's `## Evidence` is a sufficient statistic for B; B doesn't need to re-derive A's reasoning.
 - **Risks are first-class.** A risk section on a ticket is like error handling in code. Without it, the plan works until it doesn't.
+- **Confidence calibrates the plan.** Track which `low`-confidence tickets needed contract revision after their spike, and which didn't. Use that history to set future priors.
 - **Pending until approved.** All tickets start at `status: Pending`. Only the user promotes to `Ready`.
 
-## Spikes — Binary Investigations
+## Spikes — evidence-gathering, not binary gates
 
-When a risk materializes or a ticket has an open design question, write a spike instead of guessing.
+A spike is a micro-experiment that gathers evidence about an unknown. Its output **updates the confidence prior** on the unlocked ticket; it does not just flip a pass/fail bit.
 
-**What a spike is:** A micro-experiment that answers one specific question. Not a prototype. A spike runs, produces an observable result, and the result decides the approach.
+### Spike workflow
 
-**Spike workflow:**
-1. Identify the unknowns. Each unknown becomes a spike program (S-01, S-02, ...).
-2. Spikes are ordered: S-01 tries the ideal approach. S-02 tries the fallback if S-01 fails. S-03 tries a further concession.
-3. Run spikes in order. Stop at the first one that works.
-4. The passing spike's approach becomes the implementation ticket.
-5. If ALL spikes fail: the risk is a confirmed constraint. Document it. Replan downstream tickets. This is normal — the plan discovered a real limitation.
-6. Spikes live in `<crate>/spike/<epic>/` as standalone programs.
+1. **Identify the unknowns.** Each unknown becomes a spike (S-01, S-02, ...).
+2. **Order spikes by ambition.** S-01 tries the ideal approach. S-02 tries the fallback. S-03 tries a further concession. Run in order; stop at the first one whose evidence is sufficient to lock the contract.
+3. **Spikes produce structured evidence.** A spike's deliverable is not "yes" or "no" — it's a paragraph in the unlocked ticket's `## Evidence` section: what was tried, what was observed, what shape the data took, and what that implies for the contract.
+4. **Aggregate evidence across multiple spikes when they bear on the same contract.** If S-01 partially succeeds (proves field X is available but field Y is not), S-02 doesn't start from zero — it inherits S-01's evidence and asks the next narrower question. The downstream ticket's `## Evidence` section is the *combined* belief, not the last spike's report.
+5. **Update the confidence prior.** A passing spike usually moves the unlocked ticket from `low` → `medium` or `high`. A spike that uncovers a constraint may move it from `medium` → `low` (or trigger replanning).
+6. **If all spikes fail:** the risk is a confirmed constraint. Document it in the unlocked ticket's `## Evidence`, and replan downstream tickets. This is normal — the plan discovered a real limitation.
+7. **Spike code lives in `<crate>/spike/<epic>/`** as standalone programs.
 
-**Spike ticket format:**
+### Spike ticket format
 
 ```yaml
 ---
 id: EPIC-S01
-title: "Spike: Can we extract combo box options from pdf_oxide?"
+title: "Spike: Does jsonrpsee 0.26 expose cookie headers in on_request?"
 status: Pending
 type: spike
 blocked_by: []
 unlocks: [EPIC-N]
+confidence: n/a
 ---
 ```
 
 ```markdown
 ## Question
-Does pdf_oxide 0.3.24's FormField expose the /Opt array for Choice fields?
+Does jsonrpsee 0.26's `on_request` callback receive the WS-upgrade request
+with cookie headers intact, or are they consumed before reaching us?
 
 ## Setup
-Load the fixture PDF. Call FormExtractor::extract_fields. Check if any
-field has options data.
+Spin up a minimal jsonrpsee server with an `on_request` hook. Send a WS
+upgrade with `Cookie: session=abc`. Log what the hook receives.
 
 ## Pass condition
-At least one field has a non-empty options list.
+The hook observes `Cookie: session=abc` in the request headers.
+
+## Evidence to record (regardless of pass/fail)
+- What the request struct exposes (full headers? trimmed? mutated?)
+- Whether `extensions()` is writable from the hook (needed for AUTH-7's design)
+- Any version-specific behavior worth pinning in Cargo.toml
 
 ## Fail → next
-S-02: Parse the /Opt array manually from the PDF dictionary via pdf_oxide's
-low-level document API.
+S-02: Use a tower middleware layer above jsonrpsee to capture cookies before
+the upgrade, then thread via Extensions.
 
 ## Fail → fallback
-If neither spike works: accept options = [] for pdf_oxide extractor.
-Document as a known limitation. Only pdfium provides options.
+If neither spike works: route auth through a separate HTTP endpoint that
+issues a one-time WS connect token. Document as a known limitation;
+contract for AUTH-2 changes from "cookie at upgrade" to "token at upgrade".
 ```
 
-**Key rule:** A spike that requires a judgment call to decide pass/fail is not a spike. The pass condition must be binary.
+**Key rule:** A spike that requires a judgment call to decide pass/fail is not a spike. The pass condition must be binary. But the *evidence* the spike records is structured prose, not a bit — that evidence is what downstream tickets condition on.
+
+## Calibration — closing the loop
+
+At the end of an epic (when the last ticket reaches `Complete`), spend five minutes on calibration:
+
+- Which `low`-confidence tickets needed contract revision after their spike? (Confidence was correctly low.)
+- Which `low`-confidence tickets had their spike pass first try and didn't need revision? (Confidence was *too* low — we over-hedged.)
+- Which `high`-confidence tickets needed mid-flight contract revision? (Confidence was *too* high — we under-hedged.)
+- What was the most expensive surprise? Did anything in the upstream `## Evidence` sections hint at it?
+
+Record the takeaway in a one-line note at the bottom of the epic overview, e.g.:
+
+> **Calibration (2026-04-25):** AUTH-3's `medium` was right; AUTH-7's `high` should have been `low` — we missed that jsonrpsee Extensions don't survive across the upgrade boundary. Future tickets touching jsonrpsee internals: start at `low` until proven otherwise.
+
+This is the "Platt scaling" of the planning process. You are systematically biased in some direction; explicit calibration shrinks the bias over epics.
 
 ## Architecture doc naming convention
 
@@ -152,7 +195,7 @@ Example: `16681577588676290559_type-system.md`
 
 ## Pointers
 
-- Ticket format and status values: `skills/ticketing/SKILL.md`
-- Strong typing in contracts: `skills/strong-typing/SKILL.md`
+- Ticket format, status values, evidence section: `../ticketing/SKILL.md`
+- Strong typing in contracts: `../strong-typing/SKILL.md`
 - Methodology: `~/CLAUDE.md` → "Methodology" section
-- Example epics: FormVeritas `plans/IDN/`, `plans/STF/`, `plans/CHILD/`
+- Real epic for reference: `plans/AUTH/` in the hypermemetic root
