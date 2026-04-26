@@ -49,7 +49,6 @@ These skills live in their respective repos. The entry point is documented here 
 | Plexus Locus | `plexus-locus/` | `~/CLAUDE.md` → "Plexus Locus" section | Terminal orchestration (tmux/zellij) over Plexus RPC |
 | Hyperforge | `hyperforge/` | `~/CLAUDE.md` → "Hyperforge" section | Multi-forge repository management |
 | Vox | External: `juggernautlabs/vox/` | `~/CLAUDE.md` → "Vox Development Workflow" section | Live audio transcription pipeline |
-| FormVeritas auth model | `FormVeritasV2/` | `FormVeritasV2/CLAUDE.md` → "Roles and Tenant Scoping" | TenantScope, ValidUser, auth chain |
 
 ## How a planned epic actually flows
 
