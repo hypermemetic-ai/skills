@@ -5,6 +5,8 @@ description: Use when the user asks to write an implementation ticket, capture a
 
 # Skill: Write a TDD Ticket
 
+> **Tickets describe behavior. No Rust/SQL/pseudocode blocks in body sections — type names only, never type definitions. The single exception is `type: design` (see Frontmatter section below).**
+
 A ticket is a sufficient statistic for the next agent in the chain. It carries forward not just **what** to build, but the **evidence** that justifies the contract — so when the contract is questioned later, the rationale is in the file, not in someone's head.
 
 The binding constraint is the **two-stranger test**: two agents who have never spoken — one implementing, one verifying — can independently agree on Done using only the ticket text.
@@ -49,13 +51,25 @@ plans/                           # Top-level: cross-crate epics
 id: EPIC-N
 title: "Short description"
 status: Pending
-type: implementation        # implementation | analysis | spike | epic
+type: implementation        # implementation | analysis | spike | epic | design
 blocked_by: []
 unlocks: []
 confidence: medium          # high | medium | low (optional, default medium)
 severity: Medium            # Critical | High | Medium | Low (optional)
 ---
 ```
+
+### `type` field
+
+| Value | Meaning | Code in body? |
+|-------|---------|---------------|
+| `implementation` | Build something. Concrete contract a developer executes against. | **No** — behavior + type names only |
+| `analysis` | Audit, classification, or conceptual reference. Captures durable findings. | **No** — prose + type names |
+| `spike` | Investigation that resolves design questions; the contract IS the investigation. | **No** in the spike ticket itself; the spike's *output* may be `type: design` |
+| `epic` | Overview document for a multi-ticket initiative. | **No** |
+| `design` | Spec / shape / reference doc. Spike outputs and architecture references that need to show concrete type shapes, schemas, code patterns. | **Yes** — Rust pseudocode, JSON schemas, SQL, etc. permitted |
+
+`design` is the escape hatch for artifacts where showing the shape IS the point — spike outputs (`*-output.md` historically), schema references, architectural pattern docs. The artifact governs itself by its declared type, not by its filename.
 
 ### `confidence` field
 
@@ -159,6 +173,7 @@ A ticket reaches `Complete` only when the workspace it touches builds and tests 
 - [ ] Downstream tickets can read both the contract AND the evidence
 - [ ] File-write boundaries are disjoint from any sibling ticket marked concurrent in the DAG
 - [ ] `confidence` field set; if `low`, a spike ticket exists in `blocked_by`
+- [ ] **Body sections contain prose, input/output tables, and type names — NO Rust/SQL/pseudocode blocks** (unless `type: design`)
 
 ## Examples
 
@@ -197,6 +212,31 @@ A ticket reaches `Complete` only when the workspace it touches builds and tests 
 > Use `tower::ServiceBuilder` to add middleware. Parse cookies with the `cookie` crate. Store in a HashMap.
 
 (Implementation prescription. The ticket should say what to achieve, not how.)
+
+**Bad `## Required behavior` section (slip pattern — showing type definitions in a non-`design` ticket):**
+
+> ```rust
+> pub struct AuditRecord {
+>     pub timestamp: DateTime<Utc>,
+>     pub originator: Option<UserId>,
+>     pub roles: Vec<RoleName>,
+>     pub decision: AuditDecision,
+> }
+> ```
+> Every scope check writes one record to the audit sink.
+
+(Pins the field set, the field names, the visibility, and the derive-trait choices. The implementer is now constrained to this exact shape rather than choosing the best representation given everything else they're working with. If the type is the contract, the ticket should be `type: design`; if not, prose with type names is the right shape.)
+
+**Good `## Required behavior` section (same content, behavior-shaped):**
+
+> | Trigger | Output |
+> |---|---|
+> | Any scope check (allow or deny) completes | One `AuditRecord` is written to the configured `AuditSink` |
+> | The audit sink rejects the write | The originating call still completes per its own success/failure logic; sink failure is logged at WARN, not propagated |
+>
+> The `AuditRecord` exposes (at minimum): the `Instant` of the check, the originating `UserId` (or absent for anonymous), the evaluated `Vec<RoleName>`, the `MethodPath` invoked, the `Vec<Scope>` required, the `AuditDecision`, and a `Uuid` correlation id matching the entry to the call result. The `AuditSink` trait is referenced from `plexus-core::audit` (defined upstream by AUTHZ-CORE-X). Field shapes are pinned by that crate's public API; downstream consumers depend on these named fields.
+
+(Same information; type names cited; implementer chooses the field types, derives, and visibility. Behavior is testable from the trigger/output table without reading source.)
 
 ## Pointers
 
