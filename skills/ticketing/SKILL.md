@@ -56,6 +56,8 @@ blocked_by: []
 unlocks: []
 confidence: medium          # high | medium | low (optional, default medium)
 severity: Medium            # Critical | High | Medium | Low (optional)
+introduces: []              # public types this ticket adds to the target crate (Rule 12)
+imports:    []              # public types this ticket depends on, with owner if known
 ---
 ```
 
@@ -145,8 +147,9 @@ The `## Evidence` section is the BLF-style sufficient statistic. When a downstre
 7. **Fixtures are committed.** If criteria reference a test fixture, it exists in the repo.
 8. **Downstream tickets can read the contract.** If ticket B depends on A's output, A's criteria pin the shape AND A's `## Evidence` records why.
 9. **Strong types in contracts.** Reference `AuthContext`, not "a struct with user id and roles." See `strong-typing` skill.
-10. **Concurrency is file-bounded.** Two tickets that *write* the same file cannot run in parallel — they collide at commit time, regardless of `blocked_by`. When planning, check file boundaries across tickets in addition to logical dependencies. Reading the same file is fine; writing is not.
+10. **Concurrency is file-bounded AND namespace-bounded.** Two tickets that *write* the same file cannot run in parallel — they collide at commit time, regardless of `blocked_by`. Two tickets that introduce the *same public type to the same crate* cannot run in parallel either, even if their files differ — Rust's orphan rules and `pub use` make the crate's public namespace a shared resource. Reading the same file or importing the same type is fine; writing or introducing is not. When planning, check both file boundaries and namespace boundaries across tickets in addition to logical dependencies.
 11. **Split tickets along file boundaries to expose parallelism.** A single ticket modifying multiple independent files is a serial chain disguised as one unit. Split into per-file units so the pieces can be implemented concurrently.
+12. **Declared vocabulary.** Every `type: implementation` ticket lists, in its frontmatter, the public types it adds (`introduces:`) and the public types it depends on (`imports:`). A type name appearing in `introduces:` on more than one open (`Pending`/`Ready`) ticket is a planning error: either one cedes ownership and imports from the other, or a foundation ticket lands first. The two-stranger test is a *local* coherence check; declared vocabulary is the *global* one — it catches sibling-collision risks that no individual ticket can see.
 
 ## Integration gate (the rule for `Complete`)
 
@@ -174,6 +177,9 @@ A ticket reaches `Complete` only when the workspace it touches builds and tests 
 - [ ] File-write boundaries are disjoint from any sibling ticket marked concurrent in the DAG
 - [ ] `confidence` field set; if `low`, a spike ticket exists in `blocked_by`
 - [ ] **Body sections contain prose, input/output tables, and type names — NO Rust/SQL/pseudocode blocks** (unless `type: design`)
+- [ ] `introduces:` and `imports:` frontmatter fields populated for `type: implementation` tickets
+- [ ] Every public type cited in `## Required behavior` appears in `introduces:`, `imports:`, or is from the standard library
+- [ ] Bulk-grep across open tickets: each name in `introduces:` appears in exactly one open ticket (no sibling collisions)
 
 ## Examples
 

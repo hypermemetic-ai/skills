@@ -41,6 +41,14 @@ What's the last thing that needs to happen? That's the leaf ticket. What does it
 
 At every node in the DAG, ask: "can any of these blocked tickets run in parallel?" If two tickets touch different files and have no data dependency, they can. The DAG should be wide, not deep. Serial chains are bottlenecks.
 
+### 3.5. Identify shared vocabulary
+
+Before fan-out, list every public type each ticket will need to name. For each type, assign **exactly one owner ticket** — the one that *introduces* it; all others *import* it. If a type is needed by multiple tickets but no upstream ticket owns it, hoist its introduction into a new foundation ticket that runs first.
+
+Sibling tickets that share vocabulary collide at merge time even when their files don't overlap — Rust's orphan rules and `pub use` make the crate namespace a write-shared resource. The ticketing skill's `introduces:` / `imports:` frontmatter fields (Rule 12) are the mechanical check; this step is where the planner populates them.
+
+Wave 1 of phase B (May 2026) skipped this step. `MethodPath`, `HeaderName`, `CookieName` were independently invented by three sibling tickets. The merge cost was a six-step hand-resolution; the planning cost would have been one extra ticket landed first.
+
 ### 4. Define inputs and outputs at every edge
 
 If ticket A unlocks ticket B, then A's acceptance criteria must pin exactly what B will read. **A's `## Evidence` section must record *why* the contract has that shape**, so that if A's contract is questioned later, the conversation starts from recorded reasoning rather than restarting cold. Use strong types (domain newtypes, not bare strings) in the contract language.
@@ -102,6 +110,7 @@ Body:
 - **One decision per ticket.** Ambiguity in one ticket cascades to every downstream ticket.
 - **Contracts at every edge.** Ticket A's output is ticket B's input. Both must name the same shape.
 - **Evidence travels with the contract.** A's `## Evidence` is a sufficient statistic for B; B doesn't need to re-derive A's reasoning.
+- **Vocabulary is a shared resource.** Two parallel tickets must not introduce the same public type. Either one owns it and the other imports, or a foundation ticket lands first. See Step 3.5.
 - **Risks are first-class.** A risk section on a ticket is like error handling in code. Without it, the plan works until it doesn't.
 - **Confidence calibrates the plan.** Track which `low`-confidence tickets needed contract revision after their spike, and which didn't. Use that history to set future priors.
 - **Pending until approved.** All tickets start at `status: Pending`. Only the user promotes to `Ready`.
@@ -171,6 +180,7 @@ At the end of an epic (when the last ticket reaches `Complete`), spend five minu
 - Which `low`-confidence tickets had their spike pass first try and didn't need revision? (Confidence was *too* low — we over-hedged.)
 - Which `high`-confidence tickets needed mid-flight contract revision? (Confidence was *too* high — we under-hedged.)
 - What was the most expensive surprise? Did anything in the upstream `## Evidence` sections hint at it?
+- Did any sibling tickets share vocabulary that wasn't centralized? If yes, the planner under-hoisted at Step 3.5.
 
 Record the takeaway in a one-line note at the bottom of the epic overview, e.g.:
 
