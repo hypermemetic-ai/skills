@@ -138,6 +138,20 @@ The **producer side** of the dependency edge: the named artifacts this ticket *a
 - "Consumed by" is a **known subticket / downstream ticket**, or "available — no consumer yet." The `unlocks` frontmatter and any subtickets' `blocked_by` must be **derivable from this list**.
 - Pairs with `## Intended Usage`: **Provides = *what* is added; Intended Usage = *how* to wield it.** Acceptance pins each provided shape; `## Evidence` records *why* it has that shape.
 
+## Consumes (the input contract)
+The **consumer side**: structures this ticket reads but does NOT create — each
+traced to the upstream ticket whose `## Provides` produces it.
+
+| Input | Shape (strong-typed) | Produced by |
+| -- | -- | -- |
+| `UserUUID` | newtype over `uuid.UUID` | B1.0 |
+
+- Every entry resolves to **exactly one** upstream `## Provides`; `blocked_by`
+  derives from this list — the symmetric complement of `## Provides`/`unlocks`.
+- A `Consumes` with **no** matching `Provides` is a **missing root** (build it
+  first); a structure in **two** tickets' `Provides` is a **duplicate owner**
+  (one owns it, the rest consume) — both caught by diffing the two lists.
+
 ## Intended Usage
 How the next consumer is expected to call the thing this ticket produces.
 The construction shape, the typical call site, the abstraction boundary,
@@ -187,6 +201,7 @@ The `## Evidence` section is the BLF-style sufficient statistic. When a downstre
 15. **Declare the output contract (`## Provides`).** Every ticket that *adds* something a downstream ticket or subticket depends on lists it under `## Provides` — named, strong-typed, with its consumer. The `unlocks` edges and any subtickets' `blocked_by` must be **derivable** from it; a dependency that lives in the DAG but in no ticket's `## Provides` is an unstated contract — the failure Rule 8 guards, made explicit on the producer side. **Enforce this hardest at the milestone level:** a milestone's output contract is its scope ticket's *Interface contract* — the edge whole milestones hang off, so an unstated or sloppy one there cascades furthest.
 16. **A build is a leaf only if a subagent can do it from the ticket alone.** If a build turns out too complex and needs breaking up, it's an execution ticket in disguise — **promote it** to its own execution ticket and let its sub-tickets take over. The build/execution boundary is *sized by* "can one agent do this directly from the ticket?", reassessed on contact — not fixed at planning.
 17. **Link the PR directly.** When a ticket has a pull request, attach it as a first-class link on the ticket — the tracker's PR/attachment field, or the commit/PR reference in `## Completion` for a `plans/` directory — **never only a prose mention buried in the body**. A reviewer or downstream agent must reach the diff in one click, and a linked PR lets the tracker surface its state (draft / open / merged) on the ticket. One ticket's work can span several PRs and one PR can close several tickets; link **every** PR↔ticket edge that exists, not just the first.
+18. **Declare `## Consumes` and cross-check it.** Symmetric to `## Provides`: list every structure the ticket reads but doesn't create, traced to the upstream `## Provides` that makes it. **Diffing every `Provides` against every `Consumes` is a required planning step** — mechanical, not attention-dependent: a `Consumes` with no `Provides` is a **missing root**; a structure in two `Provides` is a **duplicate owner** (the integration collision, named at plan time, not discovered at merge). `blocked_by` derives from `Consumes` exactly as `unlocks` derives from `Provides`.
 
 ## Integration gate (the rule for `Complete`)
 

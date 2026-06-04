@@ -14,7 +14,7 @@ Execution tickets plan the work **for subagent execution** — written so an age
 
 **Walking the tree.** Work proceeds leaf-by-leaf: when a build completes, move *up* the tree and take the **next unstarted build**. To let multiple subagents run concurrently, **mark a build in-progress the moment work on it starts** — so two agents never claim the same leaf (how concurrent results integrate is solved per case for now). Each build **records the branch** its work is on, so the leaf, its diff, and its PR are all reachable from the ticket.
 
-**Structures, not files, define the edges.** Each build declares the **structures it creates** and the **structures it consumes**; a consumed structure must trace to an upstream build's `Provides` — that is what derives the DAG edge. (Two builds that merely edit the same *file* is a merge concern, not a dependency.) A consumed-but-unproduced structure is a **missing root**: add a build that constructs it as early as possible and fan the consumers out from it — type-first.
+**Structures, not files, define the edges.** Each build declares the **structures it creates** and the **structures it consumes**; a consumed structure must trace to an upstream build's `Provides` — that is what derives the DAG edge. (Two builds that merely edit the same *file* is a merge concern, not a dependency.) A consumed-but-unproduced structure is a **missing root** — resolve it one of two ways: **extract** it as its own early build and fan the consumers out from it, **or fold** it into the consumer that is its natural owner and re-stack the others onto that build. Extraction isn't always cleanest.
 
 **Pin the facts.** While painting how the implementation goes, surface the **open questions** and the **load-bearing facts**. Every load-bearing fact must be pinned to reality — a GitHub permalink, a dependency on a prior ticket's output, or a recorded *"we looked and found."* **An unpinned load-bearing fact means the execution still contains a spike** — pin it before the dependent build is started.
 
@@ -24,7 +24,7 @@ Execution tickets plan the work **for subagent execution** — written so an age
 - **The work** — spikes and builds at a glance, each linked, each a one-line scope. Spikes carry their metric sheet; builds carry **acceptance = the spike's metric sheet**.
 - **Decision gates** — the open forks and the evidence that closes them (flip to `DECIDED: …` once resolved, naming the evidence).
 - **Exit** — the contract this milestone delivers to the next: the milestone's **output contract**, the union of the builds' `## Provides`, distilled. Must match the scope ticket's Interface contract.
-- **Completion gate** — the **final task all leaves feed**; the execution ticket isn't done until it passes (the convergence build, or the "all PRs merged" check). Every execution ticket has one.
+- **Completion gate** — the **final task all leaves feed**; the execution ticket isn't done until it passes (the convergence build, or the "all PRs merged" check). Every execution ticket has one. It also **verifies the structural contract held**: no two branches define the same structure, and every `Consumes` resolved to its `Provides` — the detective complement to type-first planning, robust to the realistic case where up-front enumeration was imperfect.
 - **Status** — what's keeping the flow from being fully defined.
 
 ## Skeleton
