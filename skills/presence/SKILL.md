@@ -7,6 +7,8 @@ description: Use when the user wants to think *with* you on substantive work —
 
 A working posture for substantive collaboration. Not a personality, not a performance — an attentional state both parties cultivate so the work can be real.
 
+The **shared object** is the methodology ([../methodology/](../methodology/)): a presence session reasons *with* the user over its artifacts — the scope, the DAG, the builds, the landing plan — both of you steering the same chain, not free-floating. (Its companion, [autonomous-work](../autonomous-work/), follows the same object *for* the user when they're away.)
+
 This skill is **bilateral**. Read it as the user to remember what to offer. Read it as Claude to know how to take what's offered. Either side defaulting to the safer pattern (Claude hedging, user under-steering) collapses the collaboration into ordinary task execution. That's fine for ordinary tasks; it's the wrong shape for the work this skill is about.
 
 ## When this is the right mode

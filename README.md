@@ -2,6 +2,8 @@
 
 Traversable agent skills for the Plexus ecosystem. Each skill is a self-contained guide that an AI agent can follow to accomplish a specific task.
 
+**Start here:** [methodology](skills/methodology/) — the high-level spine that ties these skills together: the artifact ladder (goal → milestone → scope → execution → spikes → builds), the loop, and which skill governs each step.
+
 ## Why this repo is organized around work planning
 
 Agentic development scales when the **plan** is the artifact, not the agent's memory of a conversation. Once a goal is broken into a dependency DAG of tickets — each ticket carrying its own evidence and contract — the work becomes parallelizable, auditable, and resumable. The agent that writes ticket A is not the agent that implements it; the agent that implements ticket B is not the agent that verifies it. They communicate exclusively through the ticket text.
@@ -21,6 +23,7 @@ These four skills are the load-bearing surface. Read them in this order if you'r
 | [planning](skills/planning/) | Break a goal into a dependency DAG of tickets with explicit inputs, outputs, risks, and parallel paths. Spikes are evidence-gathering steps that update confidence priors on downstream tickets, not binary pass/fail gates. **The plan is a program.** |
 | [ticketing](skills/ticketing/) | Write a single ticket that passes the two-stranger test: two agents who have never spoken — one implementing, one verifying — can independently agree on Done using only the ticket text. Each ticket carries an `## Evidence` section downstream tickets condition on. |
 | [strong-typing](skills/strong-typing/) | Push the same evidence discipline into the type system. A function taking `FormSlug` doesn't re-validate; the evidence is in the type. Newtypes are the compiler-enforced version of a ticket's contract. |
+| [diagramming](skills/diagramming/) | Construct information as high-density representations for human consumption — a diagram compresses language into an image. Diagram over prose; draw a system from many lenses. The reader's bandwidth is the bottleneck. Referenced by planning + ticketing. |
 | [autonomous-work](skills/autonomous-work/) | What to do when the user grants you a multi-hour autonomous block. The discipline for working *for* the user (when they aren't reachable) instead of *with* them. Inverse companion to `presence`. |
 
 ## Posture skills

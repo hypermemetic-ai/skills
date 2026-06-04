@@ -9,6 +9,8 @@ The user has given you a long autonomous block — hours of independent work, no
 
 This skill is the inverse of `presence`. Presence is for working *with* the user; this is for working *for* them across a span where they aren't reachable.
 
+The **primary object you follow is the methodology** ([../methodology/](../methodology/)): you walk its artifact ladder and drive builds through their *output states*. Your finish line is **implemented** (PR open) — never **landed**, because review and QA aren't yours to do. So the session's terminal deliverable is a **reviewable PR topology** — a stacked-PR set or one execution PR, per [../ticketing/execution-ticket.md](../ticketing/execution-ticket.md) — not a heap of commits.
+
 ## When this mode applies
 
 Triggers on explicit grants like:
@@ -79,6 +81,7 @@ At session end, write a `SESSION_LOG.md` (or `HANDOFF.md`) in the primary repo. 
 
 - **TL;DR** — what's where, build status, test counts
 - **What got built** — phase by phase, with commit hashes
+- **Merge frontier** — the PR topology: which PRs are open, which merged, which is next to merge, what's blocked on review/QA
 - **Where I'd pick up first** — priority-ordered next steps with reasoning
 - **What I deliberately did NOT do** — and why
 - **Issues opened** — pointers into the issues log if one exists
@@ -133,20 +136,22 @@ A short session ending at a clean boundary is better than a long session ending 
 ## Bootstrap (start of an autonomous block)
 
 1. **Confirm the scope.** What can you commit to? What's off-limits? If unclear, default conservative.
-2. **Create a TaskList for the high-level phases.** Tasks are conversation-scoped, but they help you stay on track and the user can see them when they wake.
-3. **Open or create ISSUES.md early.** Empty file is fine; the discipline is having it ready.
-4. **Pick one short concrete first commit.** Even something trivial. Pushes the repo into "in motion" and proves the auth/remote works.
-5. **Then start the real work.**
+2. **Survey the working tree.** `git status` first. Triage any pre-existing dirty/unknown change per [../methodology/](../methodology/) → *Before you start: triage the tree* — move it onto its own body of work, or ticket it at the top of the DAG. You commit only what *this session* owns; never bundle WIP you can't categorize.
+3. **Create a TaskList for the high-level phases.** Tasks are conversation-scoped, but they help you stay on track and the user can see them when they wake.
+4. **Open or create ISSUES.md early.** Empty file is fine; the discipline is having it ready.
+5. **Pick one short concrete first commit.** Even something trivial. Pushes the repo into "in motion" and proves the auth/remote works.
+6. **Then start the real work.**
 
 ## Wind-down (last 15% of the block)
 
 Reserve the final stretch for:
 1. Final test run, confirm green
 2. Final commit + push of any uncommitted work
-3. ISSUES.md sweep — anything you noticed that didn't get logged
-4. SESSION_LOG.md (or HANDOFF.md) written from scratch
-5. TaskList cleanup — mark final statuses
-6. Stop. Resist the urge to keep going.
+3. **Open the PRs in DAG order** (or the single execution PR), each linking the next to merge and carrying the frontier diagram — per [../ticketing/execution-ticket.md](../ticketing/execution-ticket.md). This is the terminal deliverable; you land the work *to PR-open*, the pipeline closes it.
+4. ISSUES.md sweep — anything you noticed that didn't get logged
+5. SESSION_LOG.md (or HANDOFF.md) written from scratch
+6. TaskList cleanup — mark final statuses
+7. Stop. Resist the urge to keep going.
 
 ## Pointers
 
