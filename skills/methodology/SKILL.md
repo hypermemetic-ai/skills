@@ -140,6 +140,7 @@ graph TD
 - **State conventions carry meaning.** Scope `Done` on first child issue / never `Canceled`; execution in-progress until the flow is defined; spike `Done` on result (even "decision needed"); superseded work `Canceled` *with a pointer*.
 - **Pin every load-bearing fact, or it's a spike.** A fact is pinned by reality — a GitHub permalink, a prior ticket's output, or a recorded "we looked and found." An unpinned load-bearing fact is a latent spike; the plan isn't done until it's pinned.
 - **Pin before you parallelize.** Parallel-by-default holds only across *pinned* edges. Start dependents across an unconfirmed fact and one wrong fact cascades into every ticket that conditioned on it — so a build whose failure would cascade was a dependency that should have been confirmed first.
+- **Type-first, fan-out.** Model the DAG over *software structures* (types, interfaces, methods) — not files. Each build *creates* some structures and *consumes* others; every consumed structure must be produced by an upstream node. Construct shared structures **first**, at the roots, before the functionality that uses them — then fan the functional builds out from those roots. Built once, dependents safely parallel; a structure that is a root can't be re-minted by two siblings, so the duplicate-definition / integration-collision class disappears. The structural ally of [strong-typing](../strong-typing/): the type is the contract — build it before the behavior.
 
 ## Tickets link back to the method
 

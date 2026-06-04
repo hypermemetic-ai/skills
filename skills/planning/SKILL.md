@@ -109,6 +109,10 @@ Body:
 - **A spike's evidence can be a re-runnable metric.** When the unknown is quantitative, the spike's deliverable is a metric sheet whose measuring command becomes the unlocked build's acceptance gate — evidence and acceptance criteria collapse into one artifact.
 - **Diagrams are load-bearing, and many.** A plan is rendered from several lenses — never a single diagram. If a facet is hard to draw, it isn't understood yet; drawing it *is* the thinking. (See the [diagramming](../diagramming/) skill for the lens set.)
 
+## Decompose type-first — structures are the roots
+
+Model the dependency DAG over the **software structures** the work needs (types, structs, interfaces, methods), not over files or features. For each build, name the structures it **creates** and the structures it **consumes**; a consumed structure must trace to an upstream producer's output. Pull every **shared** structure out as its own early node and build it **first** — the skeleton before the behavior — then **fan** the functional builds out from it. This maximizes safe parallelism (the dependents share an already-built root) and makes duplicate-definition collisions structurally impossible (a root can't be re-minted by two siblings). The anti-pattern is **feature-first sibling decomposition**: two siblings that both need a shared type each mint their own, and it only fails at integration.
+
 ## Projecting the plan into a live tracker
 
 The plan is a set of documents (`plans/<EPIC>/`). When the work is *also* tracked in a live system (Linear, Jira, GitHub Issues), hold one rule: **the plan document is the source of truth; the tracker is a projection.** Decide and argue the plan in the doc, then port it into tickets. If the doc lives somewhere the tracker can't open, port a self-contained summary — not a link.
