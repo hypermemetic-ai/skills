@@ -86,6 +86,10 @@ You are systematically overconfident in your raw severity rankings. Apply this s
 - **If you have ≥3 Criticals after step 6**, re-examine each: is the exploit chain *actually* end-to-end, or are you assuming an attacker has prerequisites you haven't verified? Downgrade any that depend on unverified prerequisites.
 - **If a finding's exploit requires a layer you didn't independently audit** (e.g., "if the WAF lets this through" or "if the proxy doesn't strip this header"), drop it one severity level and note the dependency in `## Evidence`.
 - **If you found the bug by pattern-matching** rather than tracing data flow end-to-end, drop one level. Pattern matches produce false positives at predictable rates.
+- **Direction of impact.** For findings of the form "X gets silently overwritten" or "Y can be modified in unexpected ways," classify by direction:
+  - Modification *removes* privileges, scope, or access → **logic bug**, not vulnerability. System fails toward less access. Annoyance/disruption surface, not exploitation. Severity at most Medium.
+  - Modification *grants* privileges, scope, or access → **vulnerability**. Severity per the table above.
+  Pattern-matching bias makes any state-machine inconsistency in a security-critical area look alarming. Calibration: check the direction first. If only downgrades are reachable, severity is bounded. The exception is **availability** — silent, triggerable privilege removal can be a denial-of-service even when it can't escalate. Track as Medium-A1 rather than dismissing.
 
 This is the security-review analogue of Platt scaling: your prior is "I tend to over-rank," and the calibration step shrinks toward Medium where evidence is partial.
 
@@ -112,6 +116,26 @@ Common false positives:
 - "Command injection via subprocess" — `Command::new().arg()` passes args as OS arguments, not shell-interpolated
 - "No HTTPS" — TLS is terminated at the ingress, not the application
 
+#### The evidence ledger
+
+A finding's `### Evidence` section ends with a per-claim ledger that separates what was *observed by execution* from what was *inferred from source*. This is the artifact of step 9: it forces an explicit commitment to which side of the line each claim sits on, rather than letting confident prose elide the difference.
+
+| Claim | Status |
+|---|---|
+| Function X produces output Y when called with input Z | **Observed** — test asserts state after `f(z)` returns |
+| Endpoint A reaches function X in production | **Inferred from source** — handler is a 1-line passthrough at `path/file.go:NN` |
+| Library Z routes the request to handler H | **Inferred — framework correctness** |
+
+Three values, in decreasing strength:
+
+- **Observed** — code was run, output was watched, a test or repro produced the claimed behavior. The strongest evidence and the one a reviewer can re-execute.
+- **Inferred from source** — read the code, traced the call chain, identified a passthrough or a literal value. Reproducible by re-reading the cited line. Cite the file:line.
+- **Inferred — framework correctness** — depends on a third-party framework (gRPC dispatch, ORM behavior, HTTP routing) doing what its docs say. Cheap to assert; cheap to be wrong about.
+
+The ledger is *required* for any finding scored High or above. For Medium and below, it's recommended; the absence is itself evidence that the calibration didn't get sharp enough.
+
+What survives the ledger gets reported. What doesn't either gets re-run to convert inference to observation, or gets downgraded with the inference status visible in the report.
+
 A finding that survives steps 7, 8, and 9 is calibrated. Findings that don't survive get dropped or downgraded — silently. The report is the calibrated set.
 
 ## Output format
@@ -129,6 +153,17 @@ A finding that survives steps 7, 8, and 9 is calibrated. Findings that don't sur
 The reasoning that justifies the severity. What code path leads to the
 exploit, what assumptions had to hold, what mitigating layers were checked
 and ruled out. This is what the next reviewer audits.
+
+| Claim | Status |
+|---|---|
+| <claim 1> | Observed / Inferred from source / Inferred — framework correctness |
+| <claim 2> | … |
+
+The ledger is required for High and Critical findings. Each row is a
+single claim and its evidence status. "Observed" means the behavior was
+produced by running code; "Inferred from source" means it was read from a
+specific file:line; "Inferred — framework correctness" means it depends on
+a third-party framework doing what its docs say.
 
 ### Recommendation
 What to fix (behavioral, not code). Optionally a ticket reference if one
