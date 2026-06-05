@@ -42,7 +42,7 @@ graph TD
 | **Scope ticket** | canonical *what/why*; Done-by-definition once it has issues; never canceled | [planning](../planning/) + [ticketing](../ticketing/) |
 | **Execution ticket** | the *how/sequence*; holds the DAG; owns the work as sub-issues | [planning](../planning/) |
 | **Spike** | bounded discovery; output is evidence — often a pass/fail metric sheet | [planning](../planning/) |
-| **Build** | implementation; acceptance = its spike's metric sheet | [ticketing](../ticketing/) + [strong-typing](../strong-typing/) |
+| **Build** | implementation; acceptance = its spike's metric sheet, or — for a high-confidence, spike-less build — its own criteria | [ticketing](../ticketing/) + [strong-typing](../strong-typing/) |
 
 The concept layer the tickets project *from* — the canonical, diagram-dense docs — is governed by **concept-mapping** (`~/dev/cn/cn-cm2-skills/skills/concept-mapping/SKILL.md`).
 
@@ -78,7 +78,7 @@ Never silently build on, or commit, a change you can't categorize.
 3. **Split each milestone** into a scope ticket (canonical view) and an execution ticket (the DAG).
 4. **Unknowns become spikes, not premature builds.** A `low`-confidence build must have a spike in its `blocked_by`.
 5. **Run spikes** count-first under a token ceiling. Their evidence is a metric sheet whose command becomes the build's acceptance gate; decision gates in the DAG are closed by spike evidence, not pre-decided.
-6. **Spikes define builds 1:1.** Promote builds; the human flips `Pending → Ready`.
+6. **Spikes define the builds they gate 1:1** — but a build confident enough to skip a spike has none; its acceptance is its own criteria (confidence `high` ⇒ no spike). Promote builds; the human flips `Pending → Ready`.
 7. **Implement in parallel** where the DAG allows. A build is **implemented** when its gate is green (the metric command re-runs clean / the integration build + tests pass) *and* it is PR-open — the agent's finish line. It is **landed** only once that PR clears the review/QA pipeline (see *From build to landed* below).
 8. **Calibrate** at close; **restructure cleanly** whenever the model shifts (extract a milestone, sweep docs + tickets, supersede with pointers).
 
@@ -140,6 +140,7 @@ graph TD
 - **State conventions carry meaning.** Scope `Done` on first child issue / never `Canceled`; execution in-progress until the flow is defined; spike `Done` on result (even "decision needed"); superseded work `Canceled` *with a pointer*.
 - **Pin every load-bearing fact, or it's a spike.** A fact is pinned by reality — a GitHub permalink, a prior ticket's output, or a recorded "we looked and found." An unpinned load-bearing fact is a latent spike; the plan isn't done until it's pinned.
 - **Pin before you parallelize.** Parallel-by-default holds only across *pinned* edges. Start dependents across an unconfirmed fact and one wrong fact cascades into every ticket that conditioned on it — so a build whose failure would cascade was a dependency that should have been confirmed first.
+- **Contract-first, fan-out.** Model the DAG over the **shared contracts** the work needs — produce before consume, extract shared contracts as early roots, fan the dependents out. The contract's *kind* varies with altitude (a multi-service **capability** → a service **API** → a subsystem **interface** → a build **type**), but the produce/consume machinery is identical at every level — only the artifact's checkability changes, so intent- and service-level work decompose the same way as build-level work. **Type-first** is the leaf case where the contract is a type — the most mechanically checkable (types diff), so reach for it whenever the shared structure is known; when it isn't, that's a [spike](../planning/), not a forced type. A contract that is a root can't be re-minted by two siblings, so the integration-collision class disappears. (Ally of [strong-typing](../strong-typing/): the type is the contract — build it before the behavior.)
 
 ## Tickets link back to the method
 

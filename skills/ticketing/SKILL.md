@@ -138,6 +138,20 @@ The **producer side** of the dependency edge: the named artifacts this ticket *a
 - "Consumed by" is a **known subticket / downstream ticket**, or "available — no consumer yet." The `unlocks` frontmatter and any subtickets' `blocked_by` must be **derivable from this list**.
 - Pairs with `## Intended Usage`: **Provides = *what* is added; Intended Usage = *how* to wield it.** Acceptance pins each provided shape; `## Evidence` records *why* it has that shape.
 
+## Consumes (the input contract)
+The **consumer side**: structures this ticket reads but does NOT create — each
+traced to the upstream ticket whose `## Provides` produces it.
+
+| Input | Shape (strong-typed) | Produced by |
+| -- | -- | -- |
+| `UserUUID` | newtype over `uuid.UUID` | B1.0 |
+
+- Every entry resolves to **exactly one** upstream `## Provides`; `blocked_by`
+  derives from this list — the symmetric complement of `## Provides`/`unlocks`.
+- A `Consumes` with **no** matching `Provides` is a **missing root** (build it
+  first); a structure in **two** tickets' `Provides` is a **duplicate owner**
+  (one owns it, the rest consume) — both caught by diffing the two lists.
+
 ## Intended Usage
 How the next consumer is expected to call the thing this ticket produces.
 The construction shape, the typical call site, the abstraction boundary,
@@ -179,7 +193,7 @@ The `## Evidence` section is the BLF-style sufficient statistic. When a downstre
 7. **Fixtures are committed.** If criteria reference a test fixture, it exists in the repo.
 8. **Downstream tickets can read the contract.** If ticket B depends on A's output, A's criteria pin the shape AND A's `## Evidence` records why.
 9. **Strong types in contracts.** Reference `AuthContext`, not "a struct with user id and roles." See `strong-typing` skill.
-10. **Concurrency is file-bounded.** Two tickets that *write* the same file cannot run in parallel — they collide at commit time, regardless of `blocked_by`. When planning, check file boundaries across tickets in addition to logical dependencies. Reading the same file is fine; writing is not.
+10. **Concurrency is file-bounded.** Two tickets that *write* the same file cannot run in parallel — they collide at commit time, regardless of `blocked_by`. When planning, check file boundaries across tickets in addition to logical dependencies. Reading the same file is fine; writing is not. This is a **merge mechanic**, distinct from the *dependency* model: dependencies are modeled over **shared contracts** — a build consumes a contract (a capability/API/type, by altitude) another produces (see [planning](../planning/) → "Decompose over shared contracts") — not over which files happen to overlap.
 11. **Split tickets along file boundaries to expose parallelism.** A single ticket modifying multiple independent files is a serial chain disguised as one unit. Split into per-file units so the pieces can be implemented concurrently.
 12. **Intended usage is a required section, divergence is append-only.** Every implementation ticket includes `## Intended Usage` describing how the next consumer calls the thing produced — the canonical wielding shape. When reality diverges (an unforeseen call site, a contract that needed loosening, a consumer that bypassed the abstraction), append a dated `### Divergence notes` entry stating what's actually used and why. Never edit prior entries; corrections become new entries. The section becomes a usage changelog and a calibration signal — repeated divergences in similar tickets mean the original design heuristic is wrong, and the planner should adjust priors.
 13. **Diagram over prose.** Lead the ticket with the diagram that carries its contract/shape; prose is the fallback for what a diagram can't say (rationale, caveats). A ticket that's all prose usually hasn't been understood *as a shape* yet — and two strangers agree on a shape faster from a diagram than from two paragraphs, which is exactly the two-stranger test this skill is built around. See the [diagramming](../diagramming/SKILL.md) skill.
@@ -187,6 +201,7 @@ The `## Evidence` section is the BLF-style sufficient statistic. When a downstre
 15. **Declare the output contract (`## Provides`).** Every ticket that *adds* something a downstream ticket or subticket depends on lists it under `## Provides` — named, strong-typed, with its consumer. The `unlocks` edges and any subtickets' `blocked_by` must be **derivable** from it; a dependency that lives in the DAG but in no ticket's `## Provides` is an unstated contract — the failure Rule 8 guards, made explicit on the producer side. **Enforce this hardest at the milestone level:** a milestone's output contract is its scope ticket's *Interface contract* — the edge whole milestones hang off, so an unstated or sloppy one there cascades furthest.
 16. **A build is a leaf only if a subagent can do it from the ticket alone.** If a build turns out too complex and needs breaking up, it's an execution ticket in disguise — **promote it** to its own execution ticket and let its sub-tickets take over. The build/execution boundary is *sized by* "can one agent do this directly from the ticket?", reassessed on contact — not fixed at planning.
 17. **Link the PR directly.** When a ticket has a pull request, attach it as a first-class link on the ticket — the tracker's PR/attachment field, or the commit/PR reference in `## Completion` for a `plans/` directory — **never only a prose mention buried in the body**. A reviewer or downstream agent must reach the diff in one click, and a linked PR lets the tracker surface its state (draft / open / merged) on the ticket. One ticket's work can span several PRs and one PR can close several tickets; link **every** PR↔ticket edge that exists, not just the first.
+18. **Declare `## Consumes` and cross-check it.** Symmetric to `## Provides`: list every structure the ticket reads but doesn't create, traced to the upstream `## Provides` that makes it. **Diffing every `Provides` against every `Consumes` is a required planning step** — mechanical, not attention-dependent: a `Consumes` with no `Provides` is a **missing root**; a structure in two `Provides` is a **duplicate owner** (the integration collision, named at plan time, not discovered at merge). `blocked_by` derives from `Consumes` exactly as `unlocks` derives from `Provides`.
 
 ## Integration gate (the rule for `Complete`)
 
