@@ -109,9 +109,22 @@ Body:
 - **A spike's evidence can be a re-runnable metric.** When the unknown is quantitative, the spike's deliverable is a metric sheet whose measuring command becomes the unlocked build's acceptance gate — evidence and acceptance criteria collapse into one artifact.
 - **Diagrams are load-bearing, and many.** A plan is rendered from several lenses — never a single diagram. If a facet is hard to draw, it isn't understood yet; drawing it *is* the thinking. (See the [diagramming](../diagramming/) skill for the lens set.)
 
-## Decompose type-first — structures are the roots
+## Decompose over shared contracts (boundary-first)
 
-Model the dependency DAG over the **software structures** the work needs (types, structs, interfaces, methods), not over files or features. For each build, name the structures it **creates** and the structures it **consumes**; a consumed structure must trace to an upstream producer's output. Pull every **shared** structure out as its own early node and build it **first** — the skeleton before the behavior — then **fan** the functional builds out from it. This maximizes safe parallelism (the dependents share an already-built root) and makes duplicate-definition collisions structurally impossible (a root can't be re-minted by two siblings). The anti-pattern is **feature-first sibling decomposition**: two siblings that both need a shared type each mint their own, and it only fails at integration.
+Model the dependency DAG over the **shared contracts** the work needs — what one unit produces and another consumes — not over files or features. The *kind* of contract varies with altitude:
+
+| Altitude | The shared contract is a… | Checkability |
+|---|---|---|
+| multi-service intent | capability / guarantee / behavior | judgment |
+| service | API / protocol / event schema / data contract | semi-mechanical |
+| subsystem | module boundary / internal interface | semi-mechanical |
+| build (leaf) | type / struct / method | mechanical (diffs) |
+
+The **machinery is altitude-invariant**: name each unit's `## Provides` and `## Consumes`, produce shared contracts before consuming them, extract them as early roots, and fan the dependents out. Only the artifact kind (and its checkability) changes — so intent- and service-level work compose with the *same* decomposition as build-level work; nothing is lost by going up.
+
+**Type-first** is the leaf-altitude special case: when the shared contract is a known software **type**, it is the most mechanically checkable (types diff), so pull it out as a root and fan out — built once, dependents safely parallel, and a root can't be re-minted by two siblings. The anti-pattern is **feature-first sibling decomposition**: two siblings that both need a shared type each mint their own, and it only fails at integration.
+
+**When the contract isn't known yet, that's a spike — not a forced type.** Decompose over intent/behavior, let the contract crystallize, then pin it (an unpinned shared contract is a latent spike).
 
 **Cross-check produce vs consume — a required step.** Have each build declare both its `## Provides` and its `## Consumes`, then **diff every `Provides` against every `Consumes`**: a consume with no producer is a **missing root** (schedule its producer first); a structure in *two* builds' `Provides` is a **duplicate owner / mis-split** (one owns it, the rest consume). Both are mechanical once both sides are declared — detection no longer depends on the planner noticing. When a shared structure surfaces, two valid resolutions: **extract** it as its own early root, or **fold** it into its natural owner and re-stack the others onto it.
 
