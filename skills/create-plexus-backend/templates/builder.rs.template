@@ -3,9 +3,15 @@ use plexus_core::plexus::DynamicHub;
 use crate::activations::*;
 
 pub async fn build_rpc() -> Arc<DynamicHub> {
-    // Register all activations under the "{{NAMESPACE}}" hub
+    // Register all activations under the "{{NAMESPACE}}_hub" hub root.
+    //
+    // The root name MUST differ from every registered activation's
+    // namespace: DynamicHub panics at registration on a collision, because
+    // a like-named child would be unreachable (Z2H-8). Hence the `_hub`
+    // suffix — synapse paths look like:
+    //   synapse {{NAMESPACE}}_hub <activation> <method> ...
     Arc::new(
-        DynamicHub::new("{{NAMESPACE}}")
+        DynamicHub::new("{{NAMESPACE}}_hub")
             // .register(YourPlugin::new())
     )
 }

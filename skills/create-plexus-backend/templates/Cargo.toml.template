@@ -1,3 +1,7 @@
+# LEGACY — DO NOT SCAFFOLD FROM THIS. Use `axon new <name>` (plexus-cli).
+# These pins are known-rotted (plexus 0.3 era; published world is
+# plexus-core 0.5.x / plexus-macros 0.5.x / plexus-transport 0.3.x) and
+# this template set is unverified. Kept as a file-tree reference only.
 [package]
 name = "{{PROJECT_NAME}}"
 version = "0.1.0"

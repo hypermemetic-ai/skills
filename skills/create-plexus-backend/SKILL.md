@@ -1,111 +1,160 @@
 ---
 name: create-plexus-backend
-description: Use when the user asks to scaffold a new Plexus RPC backend, create a WebSocket JSON-RPC 2.0 server with synapse CLI compatibility, or set up activations/plugins for a Plexus hub. Generates the file tree from `templates/` by substituting `{{PROJECT_NAME}}`, `{{NAMESPACE}}`, `{{PORT}}`, `{{PLUGIN}}`, etc.; supports the 4440–4459 port convention and MCP HTTP bridge.
+description: Use when the user asks to scaffold a new Plexus RPC backend, create a WebSocket JSON-RPC 2.0 server with synapse CLI compatibility, or set up activations/plugins for a Plexus hub. Drives `axon new` (the plexus-axon scaffolder — compiled, anti-rot-tested templates), then guides extending the scaffold with additional activations.
 ---
 
 # Skill: Create a Plexus RPC Backend
 
-Scaffold a new Plexus RPC backend — a WebSocket JSON-RPC 2.0 service with streaming responses, auto-generated schemas, and synapse CLI compatibility. The skill is a navigation guide; the actual code lives in `templates/` and is produced by token substitution.
+Scaffold a new Plexus RPC backend — a WebSocket JSON-RPC 2.0 service with
+streaming responses, auto-generated schemas, and synapse CLI compatibility.
+
+**The mechanism is `axon new`** (binary `axon`, crate `plexus-axon`, repo
+`plexus-cli` in the hypermemetic workspace). Do not hand-assemble the file
+tree: axon's templates are embedded in a tested binary whose test suite
+scaffolds real crates and `cargo build`s them, so they cannot silently rot
+the way copy-paste templates do (this skill's previous template set died
+exactly that death — plexus 0.3 pins against a 0.5 world).
 
 ## Prerequisites
 
 - Rust toolchain (edition 2021)
-- Access to plexus crates: `plexus-core`, `plexus-macros`, `plexus-transport` — published on crates.io, but local `[patch.crates-io]` overrides are common during development inside the hypermemetic workspace
+- `axon` on PATH, or built from the workspace:
+  `cd plexus-cli && cargo install --path .` (not yet on crates.io;
+  once published: `cargo install plexus-axon`)
+- `synapse` for calling the service (Hackage: `cabal install plexus-synapse`)
 
-## Inputs (collect from the user before generating)
+## Scaffold
 
-| Token | Description | Example |
-|-------|-------------|---------|
-| `{{PROJECT_NAME}}` | Crate / binary name (kebab-case) | `plexus-dispatch` |
-| `{{PROJECT_NAME_SNAKE}}` | Crate name as a Rust identifier | `plexus_dispatch` |
-| `{{NAMESPACE}}` | Top-level hub namespace (what synapse sees) | `dispatch` |
-| `{{PORT}}` | Default WebSocket port (4440–4459 range) | `4450` |
-| `{{DESCRIPTION}}` | One-line project description | `Cannabis dispatch management backend` |
-| `{{PLUGIN}}` | Activation type name (PascalCase, per plugin) | `Orders` |
-| `{{PLUGIN_SNAKE}}` | Plugin namespace (snake_case, per plugin) | `orders` |
-| `{{PLUGIN_DESCRIPTION}}` | One-line plugin description | `Order intake and routing` |
-
-## Templates
-
-All scaffolding lives in `templates/`. Token names match the table above.
-
-| Template | Destination | Purpose |
-|----------|-------------|---------|
-| `Cargo.toml.template` | `<project>/Cargo.toml` | Dependencies + `[patch.crates-io]` block (commented) |
-| `main.rs.template` | `<project>/src/main.rs` | CLI args, tracing, transport setup (stdio + WebSocket + MCP HTTP) |
-| `lib.rs.template` | `<project>/src/lib.rs` | Public exports |
-| `builder.rs.template` | `<project>/src/builder.rs` | `build_rpc()` → `Arc<DynamicHub>`, registers activations |
-| `activations_mod.rs.template` | `<project>/src/activations/mod.rs` | Re-exports each plugin |
-| `plugin_mod.rs.template` | `<project>/src/activations/<plugin>/mod.rs` | Per-plugin re-exports |
-| `activation.rs.template` | `<project>/src/activations/<plugin>/activation.rs` | `#[plexus_macros::activation]` impl with one `#[plexus_macros::method]` example |
-| `types.rs.template` | `<project>/src/activations/<plugin>/types.rs` | Event enum with `Ok` and `Error` variants |
-
-## Resulting structure
-
-```
-{{PROJECT_NAME}}/
-  Cargo.toml
-  src/
-    main.rs
-    lib.rs
-    builder.rs
-    activations/
-      mod.rs
-      {{PLUGIN_SNAKE}}/
-        mod.rs
-        activation.rs
-        types.rs
+```bash
+axon new <name> [--port <p>] [--with-auth] [--dev-layout] [--no-git] [--dir <parent>]
 ```
 
-For multiple plugins: repeat the per-plugin templates and add each to `activations/mod.rs` and `builder.rs`.
+Real run (transcript):
 
-## Builder patterns
+```
+$ axon new zecho --port 4452
+Created ./zecho
 
-`builder.rs.template` covers the simple case (independent activations). For activations that need to call back into the hub, use `Arc::new_cyclic`:
+  crate:      zecho
+  backend:    zecho   (hub root — hyphen-free for synapse)
+  activation: greeter   (distinct from the root by construction)
+  auth:       ANONYMOUS — provisional default; re-run with --with-auth to wire validation
+  git:        initialized (skip with --no-git)
+
+Next:
+  cd zecho
+  cargo run
+  synapse -P 4452 zecho greeter greet --name World
+  synapse-cc build        # typed client (server must be running)
+```
+
+Flag guide:
+
+- `--port <p>` — default 4444 (synapse's default `-P`). Pick a free port in
+  4440–4459 (`synapse _self scan` scans that range).
+- `--with-auth` — wires a transport `SessionValidator` (static bearer token
+  via `--auth-token` / `PLEXUS_AUTH_TOKEN`) plus an auth-required example
+  method. Without it the service is **anonymous and says so in a startup
+  WARN**.
+- `--dev-layout` — sibling-checkout path deps (`../plexus-core` …) instead of
+  crates.io pins. Use inside the hypermemetic workspace; registry pins are
+  the default. Note: registry-pinned scaffolds build against published
+  `plexus-transport`, which does not yet include boot-time registry
+  self-registration — call them with explicit `-P`; dev-layout scaffolds
+  self-register and resolve by bare name.
+- `--no-git` — skip the default `git init`.
+
+## Verify (all transcript-checked)
+
+```bash
+cd zecho
+cargo build          # compiles as emitted — zero manual edits
+cargo run            # serves ws://127.0.0.1:4452
+
+# In another terminal:
+synapse -P 4452 zecho greeter                      # list the activation's methods
+synapse -P 4452 zecho greeter greet --name World   # streams one greeting event
+```
+
+Expected output of the `greet` call:
+
+```
+message: Hello, World! This service was scaffolded by `axon new`.
+name: World
+type: greeting
+```
+
+Typed client: the scaffold ships `synapse.config.json` pre-pointed at the
+service, so with the server running `synapse-cc build` works unedited
+(generate → install → build → smoke tests).
+
+## Extending the scaffold (the part the skill still owns)
+
+`axon new` emits one example activation (`greeter`). Add your own:
+
+1. Create `src/<plugin>.rs` modeled on `src/greeter.rs`: an event enum with
+   `#[serde(tag = "type", rename_all = "snake_case")]` (always include an
+   `Error { message: String }` variant), and an impl block annotated
+   `#[plexus_macros::activation(namespace = "<plugin>", version = "...", description = "...")]`.
+2. Register it in `main.rs`: `.register(YourPlugin)` on the `DynamicHub`.
+3. `cargo build && cargo run`, then `synapse -P <port> <backend> <plugin>`.
+
+Conventions (unchanged from the template era — they describe the macro
+surface, not the dead templates):
+
+- **Method docs go in `///` comments, not in the macro.** The doc comment
+  above each method (and above each parameter, on current plexus-macros) is
+  its schema description. The activation-level `description` lives in the
+  macro attribute — and must stay **under 15 words** (plexus-macros rejects
+  longer; the limit is otherwise undocumented).
+- **Method return type:** every method returns
+  `impl Stream<Item = YourEvent> + Send + 'static`; single-response methods
+  use `stream! { yield ... }`.
+- **The hub root name must differ from every activation namespace.**
+  `DynamicHub::new("<root>")` panics at registration when an activation
+  namespace equals the root (a like-named child would be unreachable —
+  Z2H-8). axon enforces this by construction (`<name>` normalized
+  hyphen-free for the root, activation `greeter` refused as a crate name);
+  preserve the distinction when renaming. A `<name>_hub` root is a fine
+  pattern when you want the bare name for an activation.
+- **Hub registration:** `.register(activation)` for leaves,
+  `.register_hub(...)` for hubs implementing `ChildRouter`. Namespaces must
+  be unique within a hub.
+- **Strong types at the boundary:** method params and event fields are the
+  wire contract — apply the `strong-typing` skill, not bare `String`/`i64`.
+
+For activations that need to call back into the hub, build it cyclically:
 
 ```rust
 Arc::new_cyclic(|weak_hub: &Weak<DynamicHub>| {
     plugin_a.inject_parent(weak_hub.clone());
-    plugin_b.inject_parent(weak_hub.clone());
-    DynamicHub::new("{{NAMESPACE}}")
+    DynamicHub::new("myservice_hub")   // root ≠ any activation namespace
         .register(plugin_a)
-        .register(plugin_b)
 })
 ```
 
-## Conventions
-
-- **Method docs go in `///` comments, not in the macro.** The doc comment above each method is its description in the generated schema. The `#[plexus_macros::method(...)]` attribute carries only `params(name = "...")` per parameter, and `streaming` for multi-yield. Do NOT pass `description = "..."` to the method macro — the doc comment IS the description. (The activation-level `description` on the impl block does live in the macro, since impl blocks can't carry a `///` comment as a description.)
-- **Method return type:** every method returns `impl Stream<Item = YourEvent> + Send + 'static`. Even single-response methods use `stream! { yield ... }` — the framework handles it. Mark multi-yield methods with `#[plexus_macros::method(streaming, params(...))]`.
-- **Event variants:** `#[serde(tag = "type", rename_all = "snake_case")]` produces discriminated unions synapse can template. Always include an `Error { message: String }` variant for in-band errors.
-- **Hub registration:** `.register(activation)` for leaves, `.register_hub(activation)` for hubs that implement `ChildRouter` for nested paths. Namespaces must be unique within a hub.
-- **Port range:** Plexus backends use 4440–4459 (synapse `_self scan` scans this range). Pick an unused port.
-- **Strong types at the boundary:** activation method parameters are part of the wire contract — apply the `strong-typing` skill to method params and event fields, not bare `String`/`i64`.
-
-## Verification
-
-```bash
-cd <project>
-cargo build
-cargo run -- -p {{PORT}}                              # start the server
-synapse -P {{PORT}} {{NAMESPACE}}                     # list plugins
-synapse -P {{PORT}} {{NAMESPACE}} {{PLUGIN_SNAKE}}    # list methods
-synapse -P {{PORT}} {{NAMESPACE}} {{PLUGIN_SNAKE}} hello --message "test"
-```
-
-If the MCP HTTP bridge is enabled (default), the MCP endpoint is at `http://127.0.0.1:{{PORT}}+1/mcp`.
-
 ## Checklist
 
-- [ ] All input tokens collected from the user
-- [ ] File tree generated from templates with substitutions applied
-- [ ] `[patch.crates-io]` block uncommented if inside hypermemetic workspace
-- [ ] `cargo build` succeeds
-- [ ] `cargo run -- -p {{PORT}}` starts and responds to `synapse -P {{PORT}} {{NAMESPACE}}`
-- [ ] At least one method round-trips a real value (not just `hello`)
+- [ ] `axon new <name>` run (port chosen from 4440–4459, free)
+- [ ] `cargo build` succeeds with zero edits
+- [ ] `cargo run` + `synapse -P <port> <backend> greeter greet --name World` round-trips
+- [ ] Additional activations registered and visible via `synapse -P <port> <backend> <plugin>`
+- [ ] At least one method round-trips a real value (not just the greeter)
+- [ ] Hub root name ≠ every activation namespace
+
+## Legacy templates
+
+`templates/` in this skill directory is the pre-axon copy-paste scaffold.
+It is **unverified and known-rotted** (it shipped plexus 0.3-era pins); it
+is kept only as a reference for the file-tree shape and will be removed.
+Do not generate new backends from it — use `axon new`. If you must read it,
+note the builder was corrected to `DynamicHub::new("{{NAMESPACE}}_hub")`:
+a root named identically to an activation namespace panics at registration.
 
 ## Pointers
 
+- axon scaffolder: `plexus-cli/README.md` in the hypermemetic root (naming
+  rules, anti-rot test design, auth posture, known constraints)
+- Runnable minimal server: `plexus-rpc/examples/echo.rs`
 - Strong-typing method params: `../strong-typing/SKILL.md`
 - Tickets that scaffold a backend: `../ticketing/SKILL.md`
-- Reference standalone backend: `hyperforge/src/bin/hyperforge.rs` in the hypermemetic root
