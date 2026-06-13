@@ -5,6 +5,8 @@ description: Use when a value passed between modules represents an authorization
 
 # Skill: Capability Types
 
+**In one line:** a type whose very existence proves a check already ran — holding the value *is* the permission, and there's no way to construct one without passing the check.
+
 A newtype carries evidence that a value is *well-formed* — `FormSlug` instead of `String` says "this string is a slug, not just any string." A capability type carries evidence that a *check has occurred* — `VerifiedUser` instead of `String` says "this value's existence in scope means the system has validated the user's identity."
 
 The compiler is the witness. Holding the value is the capability. There is no path to producing the value that bypasses the check the type represents.
@@ -152,7 +154,6 @@ A capability type that demands re-validation by every caller has lost its claim 
 
 ## Pointers
 
-- Convention: `~/CLAUDE.md` → "Capability Types"
+- Convention: `../../AGENTS.md` → "Conventions › Capability Types"
 - The plain-newtype version of this idea: `../strong-typing/SKILL.md`
 - How tickets reference these in contracts: `../ticketing/SKILL.md`
-- Where security review intersects: `../security-review/SKILL.md` — capability types are the structural answer to many CC6 (Access Control) findings

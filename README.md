@@ -1,105 +1,84 @@
-# plexus-agent-skills
+# skills
 
-Traversable agent skills for the Plexus ecosystem. Each skill is a self-contained guide that an AI agent can follow to accomplish a specific task.
+**Turn a goal into shipped code through small, verifiable steps** — the human decides at the forks, the agent executes, the ticket is the interface.
 
-**Start here:** [methodology](skills/methodology/) — the high-level spine that ties these skills together: the artifact ladder (goal → milestone → scope → execution → spikes → builds), the loop, and which skill governs each step.
+The method from a human's seat: start with the **barebones scope** — the initial statement of desire — and **iterate it by grilling** against the durable records prior work left (the glossary, the ADRs), pinning the new language it invents, until it **serves as a scope**. Then write **one execution ticket**, and a single fork decides everything — *small enough for one agent in one diff?* If yes, **build** it; if no, it's a **DAG of sub-executions** that each re-enter the fork. **Spikes** answer the unknowns that shape them.
 
-## Why this repo is organized around work planning
-
-Agentic development scales when the **plan** is the artifact, not the agent's memory of a conversation. Once a goal is broken into a dependency DAG of tickets — each ticket carrying its own evidence and contract — the work becomes parallelizable, auditable, and resumable. The agent that writes ticket A is not the agent that implements it; the agent that implements ticket B is not the agent that verifies it. They communicate exclusively through the ticket text.
-
-This is what the process skills in this repo encode. They are not "ways to write good documentation." They are the operating system for multi-agent, multi-session, possibly-multi-day software work. Every other practice — context windows, model selection, autonomy grants, security review — composes on top of a plan that has already paid the cost of being explicit.
-
-The unifying primitive is the **linguistic belief state**: every artifact carries forward both its *value* (the contract, the type, the finding) AND the *evidence* that justifies it. Downstream agents condition on the evidence, not just the value, so when a contract is questioned three steps later the conversation starts from recorded reasoning rather than restarting cold.
-
-In one line: **the human decides; the agent executes; the ticket is the interface.**
-
-## The planning skills
-
-These four skills are the load-bearing surface. Read them in this order if you're new:
-
-| Skill | Role in the planning loop |
-|-------|---------------------------|
-| [planning](skills/planning/) | Break a goal into a dependency DAG of tickets with explicit inputs, outputs, risks, and parallel paths. Spikes are evidence-gathering steps that update confidence priors on downstream tickets, not binary pass/fail gates. **The plan is a program.** |
-| [ticketing](skills/ticketing/) | Write a single ticket that passes the two-stranger test: two agents who have never spoken — one implementing, one verifying — can independently agree on Done using only the ticket text. Each ticket carries an `## Evidence` section downstream tickets condition on. |
-| [strong-typing](skills/strong-typing/) | Push the same evidence discipline into the type system. A function taking `FormSlug` doesn't re-validate; the evidence is in the type. Newtypes are the compiler-enforced version of a ticket's contract. |
-| [diagramming](skills/diagramming/) | Construct information as high-density representations for human consumption — a diagram compresses language into an image. Diagram over prose; draw a system from many lenses. The reader's bandwidth is the bottleneck. Referenced by planning + ticketing. |
-| [autonomous-work](skills/autonomous-work/) | What to do when the user grants you a multi-hour autonomous block. The discipline for working *for* the user (when they aren't reachable) instead of *with* them. Inverse companion to `presence`. |
-
-## Posture skills
-
-Different category — these shape how a conversation runs, not what it produces.
-
-| Skill | When to invoke |
-|-------|----------------|
-| [presence](skills/presence/) | Substantive collaboration — design, architecture, judgment calls. Bilateral skill (both human and agent read it). Triggers on `/presence`, "let's think through X together," "you make the call," or any explicit invitation to peer collaboration over task execution. |
-
-## Domain skills
-
-| Skill | Description |
-|-------|-------------|
-| [security-review](skills/security-review/) | Structured security review grouped by SOC2 control families, with multi-trial aggregation and severity calibration. Findings carry an `### Evidence` block with the exploit chain. |
-| [forecast](skills/forecast/) | Bayesian Linguistic Forecasting (BLF). Produce a calibrated probability for a binary, dated, observable question, with a structured belief state (probability, confidence, evidence for/against, open questions). |
-| [create-plexus-backend](skills/create-plexus-backend/) | Scaffold a new Plexus RPC backend from `templates/` by token substitution. |
-
-## Repo-specific skills (pointers)
-
-These skills live in their respective repos. The entry point is documented here for discoverability.
-
-| Skill | Repo | Entry point | Description |
-|-------|------|-------------|-------------|
-| Synapse CLI | `synapse/` | `synapse/docs/SYNAPSE.md` | Schema-driven CLI for Plexus RPC — navigation, params, templates |
-| Plexus Locus | `plexus-locus/` | `~/CLAUDE.md` → "Plexus Locus" section | Terminal orchestration (tmux/zellij) over Plexus RPC |
-| Hyperforge | `hyperforge/` | `~/CLAUDE.md` → "Hyperforge" section | Multi-forge repository management |
-| Vox | External: `juggernautlabs/vox/` | `~/CLAUDE.md` → "Vox Development Workflow" section | Live audio transcription pipeline |
-
-## How a planned epic actually flows
-
-1. **Goal in.** The user describes a multi-step outcome.
-2. **Apply `planning`.** Decompose into a DAG. Identify roots, leaves, parallel branches. Mark uncertain tickets `confidence: low` and add a spike to their `blocked_by`.
-3. **Write each ticket via `ticketing`.** Pin the contract; record the `## Evidence` for *why* the contract has that shape. All tickets start at `status: Pending`.
-4. **Human reviews and promotes.** Only the user flips `Pending → Ready`. This is the binding decision boundary; an agent that promotes its own tickets has violated the contract.
-5. **Spikes run first** if any low-confidence tickets exist. Spike outputs are structured evidence that updates the unlocked ticket's confidence prior — and may force contract revision before implementation begins.
-6. **Implementation runs in parallel** wherever the DAG allows. File-write boundaries are the concurrency unit; tickets that touch disjoint files can run simultaneously.
-7. **Each ticket reaches `Complete` only when the integration gate is green** — affected workspace builds and tests pass end-to-end. A `Complete` ticket whose workspace is red is a contract violation.
-8. **Calibrate at epic close.** Compare predicted confidence to actual outcome. Adjust priors for the next epic. This is the feedback loop that makes the planner less wrong over time.
-
-Skipping any step shifts cost from one place to another, never eliminates it. Skipping evidence in tickets means downstream agents re-derive reasoning from cold. Skipping spikes means contracts get rewritten mid-implementation. Skipping calibration means the planner stays uncalibrated forever.
-
-## Operating principles
-
-- **The ticket is the prompt.** Ticket quality is the binding constraint on output quality.
-- **Documentation is the instruction set.** Context in a human's head but not in a file is a single point of failure for agents.
-- **Plans are programs.** Tickets are functions with inputs and outputs. Risks are error conditions. Spikes are error handling that produce evidence, not just status codes.
-- **Pending until approved.** Agents write at `status: Pending`. Only humans promote to `Ready`. Implementation must not begin on Pending.
-- **Parallelism is the default.** Fan the DAG out. Serial chains are bottlenecks.
-- **Verification must be mechanical.** `cargo test` scales. "Does this look right?" doesn't.
-- **Calibrate the loop.** At epic close, compare predicted confidence to actual outcome and adjust priors.
-
-The full methodology is documented in `~/CLAUDE.md` → "Methodology — Agentic Development" section.
-
-## Structure
-
-```
-skills/
-  <skill-name>/
-    SKILL.md          # The skill document (entry point, with YAML frontmatter)
-    BULK_OPS.md       # Optional: appendix files referenced by the skill
-    templates/        # Optional: file templates referenced by the skill
+```mermaid
+graph TD
+  GOAL["goal"] --> SCOPE["scope — starts barebones:<br/>the initial statement of desire"]
+  SCOPE --> GRILL["grill · iterate<br/>existing glossary + ADRs in · new terms pinned"]
+  GRILL -.->|"each round<br/>sharpens it"| SCOPE
+  SCOPE -->|"serves as<br/>a scope"| EXEC["execution ticket"]
+  EXEC --> Q{"small enough for<br/>one agent, one diff?"}
+  Q -->|"yes"| BUILD["build · implement it"]
+  Q -->|"no"| DAG["DAG of sub-executions"]
+  DAG -.->|"each sub-execution<br/>re-enters the fork"| Q
+  SPIKE["spike · resolve an unknown"] -.->|"answer shapes<br/>the sub-executions"| DAG
+  classDef g fill:#d9ead3,stroke:#38761d,color:#111;
+  classDef b fill:#cfe2f3,stroke:#0066cc,color:#111;
+  classDef f fill:#fff2cc,stroke:#bf9000,color:#111;
+  class GOAL,BUILD g;
+  class SCOPE,EXEC,DAG b;
+  class Q,GRILL,SPIKE f;
 ```
 
-## Registering a skill with Claude Code
+And it feeds itself: the execution records *how the work actually went* — the wrong turns and their fixes — and a **distill pass** (mid-execution, and always before concluding complete) turns that into **durable records**: ADRs ("why it's this way") and recipes ("how we do X here") the next scope consumes, so the next agent skips the lesson.
 
-Each `SKILL.md` has YAML frontmatter (`name:` + `description:`) so it can be registered as a Claude Code Agent Skill. To install one user-wide:
-
-```bash
-ln -s "$(pwd)/skills/<skill-name>" ~/.claude/skills/<skill-name>
+```mermaid
+graph LR
+  GOAL2["goal"] --> SCOPE2["scope"] --> EXEC2["execution"] --> BUILD2["build"] --> LANDED["landed"]
+  EXEC2 -->|"distill pass"| REC["durable records<br/>ADRs · recipes"]
+  LANDED --> HIST["execution history"]
+  HIST --> REC
+  REC -.->|"the next scope starts on recorded decisions"| GOAL2
+  classDef g fill:#d9ead3,stroke:#38761d,color:#111;
+  classDef b fill:#cfe2f3,stroke:#0066cc,color:#111;
+  classDef r fill:#ead1dc,stroke:#a64d79,color:#111;
+  class GOAL2,LANDED g;
+  class SCOPE2,EXEC2,BUILD2 b;
+  class HIST,REC r;
 ```
 
-Then Claude Code discovers the skill and surfaces it via the `/<skill-name>` slash command.
+Each part is governed by one named practice:
 
-## Usage
+- **Plan the work** — [methodology](skills/methodology/SKILL.md) (the map) · [grill](skills/grill/SKILL.md) (iterate the scope until it serves; sharpen the language) · [planning](skills/planning/SKILL.md) (goal → DAG) · [ticketing](skills/ticketing/SKILL.md) (one unit of work)
+- **Build it** — [building](skills/building/SKILL.md) (ratified ticket → landed PR; worktree discipline, the branch tree mirrors the DAG)
+- **Draw it clearly** — [diagramming](skills/diagramming/SKILL.md) (a picture beats prose)
+- **Type the contracts** — [strong-typing](skills/strong-typing/SKILL.md) · [capability-types](skills/capability-types/SKILL.md) (the compiler checks the edges)
+- **Pick up & review** — [orient](skills/orient/SKILL.md) (start cold, review against live state)
+- **Close the loop** — [recipe](skills/recipe/SKILL.md) (distill a finished execution into a reusable "how we do X here")
 
-Point an agent at `skills/<skill-name>/SKILL.md` and it will have everything it needs to execute the task.
+*House-style methodology skills for agentic, multi-session software work — self-contained, per [`AGENTS.md`](AGENTS.md). The table below is the detailed reference.*
 
-For process skills, the agent applies the skill to the current project context. These skills reference `~/CLAUDE.md` for the full convention but are self-contained enough to use standalone.
+## Skills
+
+| Skill | Produces | Use when |
+|---|---|---|
+| [methodology](skills/methodology/SKILL.md) | Orientation on the whole operating shape — goal → milestone → scope → execution DAG → spikes → builds, and which sub-skill governs each step | Starting or re-orienting on any planned effort; deciding which discipline applies |
+| [grill](skills/grill/SKILL.md) | A scope that serves — iterated from the barebones statement of desire — plus glossary entries (`CONTEXT.md`), live ADRs, and spike tickets for what nobody could answer | Iterating every scope with the human, one recommended-answer question at a time (the existing glossary + ADRs are the rubric); also before decomposing a big execution |
+| [planning](skills/planning/SKILL.md) | In Linear: a scope ticket + an execution epic owning a dependency-ordered DAG of spikes and builds | Planning an epic or breaking a goal into multi-step/multi-file work with parallel fan-out |
+| [ticketing](skills/ticketing/SKILL.md) | A Linear build ticket under the execution epic — TDD, two-stranger test, file-boundary-aware | Turning a feature/bug into a unit of work; capturing acceptance criteria a stranger could verify |
+| [building](skills/building/SKILL.md) | A landed PR from a ratified ticket — the per-ticket build loop, one tracked worktree per body of work, dirty-tree triage, DAG-shaped branch topology, cleanup with the landing | Starting implementation; managing or sweeping worktrees; landing a stack |
+| [orient](skills/orient/SKILL.md) | A grounded "where it's at" review of the work in flight — branch→PR mapping, ticket-intent vs. diff, severity-ranked findings verified against the skills + a build | Starting cold from a cleared context — "where am I", "review the current PR", "orient on the work in flight" — and you need to load context and review, not re-summarize a PR description |
+| [diagramming](skills/diagramming/SKILL.md) | The highest-density faithful representation — diagram over prose, drawn from several lenses (`lenses.md`) | Constructing any artifact for a human: a plan, ticket, concept doc, review, or explanation |
+| [strong-typing](skills/strong-typing/SKILL.md) | Named types / enums that make misuse a compile error | A codebase passes raw `string`/`int64`/`uuid` for distinct domain concepts; a bug came from passing one identifier where another was expected |
+| [capability-types](skills/capability-types/SKILL.md) | A type whose existence in scope proves an external check ran (constructor-gated, fails closed) | A value represents an authorization / validation / transactional decision downstream code keys on |
+| [recipe](skills/recipe/SKILL.md) | A "how we do X here" doc — a forward procedure with the gotchas baked in, each rule earned by a real wrong-turn, distilled from a finished execution ticket | A recurring task (migration, graph node, handler) just landed and its path was non-obvious; or you're planning a build that matches a past one and want the shortcut |
+
+## Decision records & recipes
+
+Decisions about **how we work** live in [`docs/adr/`](docs/adr/README.md); procedures for **how we do recurring agent-bound tasks** live in [`docs/recipes/`](docs/recipes/README.md). Both use the same scoping: `_common/` binds everyone who uses these skills; `<github-username>/` folders (e.g. `sshmendez/`) hold personal-scope conventions, which may tighten but never contradict `_common`. Cite as `per ADR _common/0001` / `per recipe _common/<slug>`. (Decisions and recipes about *project code* stay in the worked-on repo.)
+
+## Convention
+
+Each skill is a single `SKILL.md` under `skills/<skill-name>/`. The frontmatter has `name` and `description` (used by the harness for skill registration). The body has, at minimum:
+
+- **When to use** — what triggers this skill
+- **Inputs** — what the user provides
+- **Output** — what gets produced and where it lands
+- **Process** — numbered steps the practitioner follows
+- **Rules** — invariants that must hold
+- **Examples** — good/bad illustrations
+
+Match the shape of the existing [`orient`](skills/orient/SKILL.md) skill for new skills, so the format stays consistent across the repo.

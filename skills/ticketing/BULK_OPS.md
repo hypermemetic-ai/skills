@@ -1,93 +1,37 @@
-# Bulk Operations on Ticket Frontmatter
+# Bulk Operations on Linear Tickets
 
-Operational tooling for editing many ticket files at once. Separated from `SKILL.md` because these are mechanics, not the skill itself.
+Operational mechanics for touching many Linear issues at once. Separated from `SKILL.md` because these are mechanics, not the skill itself.
 
 ## Querying tickets
 
-```bash
-# All outstanding work
-grep -rl '^status: Ready' plans/
+Use the `linear-server` MCP tools; filter server-side, never page through everything client-side:
 
-# All complete
-grep -rl '^status: Complete' plans/
+- `list_issues` with `project` / `parentId` / `state` / `assignee` / `query` — e.g. all children of an execution epic: `list_issues(parentId: "CMD-XXXX")`; all ready work: `list_issues(project: "...", state: "coding queue")`.
+- `get_issue` for the full description + relations + attachments (list output truncates descriptions).
+- Large result sets overflow the context — push the sweep into a subagent that returns the summary table (id · state · title), not raw JSON.
 
-# Pending (awaiting human approval)
-grep -rl '^status: Pending' plans/
-```
+## Bulk state flips
 
-Ready tickets with titles:
+Each flip is one `save_issue(id, state)` call. For N tickets:
 
-```python
-python3 -c "
-import glob, re
-for f in sorted(glob.glob('plans/*/*.md')):
-    with open(f) as fh:
-        text = fh.read()
-    if not text.startswith('---'): continue
-    block = text.split('---')[1]
-    status = re.search(r'^status:\s*(.+)', block, re.MULTILINE)
-    tid = re.search(r'^id:\s*(.+)', block, re.MULTILINE)
-    title = re.search(r'^title:\s*\"?(.+?)\"?\s*$', block, re.MULTILINE)
-    if status and tid and title and status.group(1).strip() == 'Ready':
-        print(f'  {tid.group(1).strip():20s} {title.group(1).strip()}')
-"
-```
+- **A handful** — issue the calls directly, in parallel.
+- **Many, or with per-ticket edits** — fan out to subagents, each with an explicit list of ids and the exact target state name (use the real workflow state names — `coding queue`, `in code review`, `qa testing` — not paraphrases).
+- Bulk *ratification* (`Triage` → `coding queue`) is the human's call: do it only with explicit permission, and report exactly which ids moved.
 
-## Bulk frontmatter updates
+## Supersession sweeps
 
-Do not edit ticket frontmatter one file at a time when updating N tickets to the same state. Use a YAML-aware bulk-edit one-liner. It is faster, atomic per file, and avoids the Read-before-Edit friction of tool-based editing when flipping many tickets at once.
+When a re-plan cancels or absorbs many tickets, every canceled ticket gets — in the same pass:
 
-### Status flips (regex is fine)
+1. `save_issue(id, state: "canceled")`
+2. a `save_comment` naming the survivor, the deciding evidence, and (if code was built) the archive tag + removal commit
+3. the parent execution ticket's DAG updated to the collapsed shape
 
-```bash
-# Flip every Pending ticket in an epic to Ready (bulk promotion).
-python3 -c "
-import re, glob, pathlib
-for f in glob.glob('plans/<EPIC>/*.md'):
-    p = pathlib.Path(f)
-    text = p.read_text()
-    new = re.sub(r'^status:\s*Pending\s*$', 'status: Ready', text, count=1, flags=re.MULTILINE)
-    if new != text: p.write_text(new)
-"
+Never flip states without the pointer comments — a bare `canceled` reads as abandoned work.
 
-# Flip specific IDs from Ready to Complete.
-python3 -c "
-import re, pathlib
-for tid in ['AUTH-2', 'AUTH-5', 'AUTH-6']:
-    p = pathlib.Path(f'plans/AUTH/{tid}.md')
-    text = p.read_text()
-    new = re.sub(r'^status:\s*Ready\s*$', 'status: Complete', text, count=1, flags=re.MULTILINE)
-    if new != text: p.write_text(new)
-"
+## Description edits at scale
 
-# Verify what changed (run before committing).
-git diff plans/
-```
-
-### Structured edits (use PyYAML, not regex)
-
-For changes beyond simple status flips — adding `superseded_by`, retargeting `target_repo`, updating `confidence` based on spike outcomes — use ruamel.yaml to preserve formatting and comments:
-
-```python
-# Requires: pip install ruamel.yaml
-from ruamel.yaml import YAML
-import pathlib
-
-yaml = YAML()
-for p in pathlib.Path('plans/AUTH').glob('AUTH-*.md'):
-    text = p.read_text()
-    if not text.startswith('---\n'): continue
-    _, front, body = text.split('---\n', 2)
-    data = yaml.load(front)
-    # Edit here — e.g.:
-    if data.get('target_repo') == 'old-name':
-        data['target_repo'] = 'new-name'
-    # Write back.
-    import io; buf = io.StringIO()
-    yaml.dump(data, buf)
-    p.write_text(f'---\n{buf.getvalue()}---\n{body}')
-```
+`save_issue(id, description)` **replaces the whole description** — there is no patch operation. Always `get_issue` first, edit the fetched text, and resend it in full; never reconstruct a description from memory. For sweeps (e.g. a rename across every ticket in a milestone), give each subagent the fetch-edit-resend loop and the exact find/replace contract.
 
 ## Rule
 
-Reaching for a bulk update tool is itself a signal that the plan may be mid-rework. If you're flipping a dozen tickets to `Superseded`, capture *why* in one commit message rather than spreading the rationale across many individual edits. Bulk operations should produce one coherent change with one explanation, not N silent edits.
+Reaching for bulk operations is itself a signal the plan is mid-rework. A dozen cancellations should land as **one coherent restructure with one explanation** — the rationale on the execution ticket and pointer comments on each child — not N silent state changes.
