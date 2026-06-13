@@ -2,7 +2,7 @@
 
 The *how/sequence* of a milestone — an **epic that holds the DAG and owns the work as sub-issues** (spikes, builds). One per milestone. Owns the **sequence, not the rationale** (that's the [scope ticket](scope-ticket.md)). Diagram-led — lead with the DAG (see the [diagramming](../diagramming/SKILL.md) skill).
 
-> **Lifecycle:** stays in-progress until the execution *flow is defined* (the spikes have sized the builds), then advances as builds land. Spikes and builds are its sub-issues. See [planning](../planning/SKILL.md) → "Projecting the plan into a live tracker". *This doc is the body format.*
+> **Lifecycle (CMD Linear states):** `Triage` (undecided) → `new` (startup, via `coding queue`) → **`coding`** (active — stays here, continuously in progress, *as long as any sub-issue is unresolved*) → `done` (goal met + completion gate). **`canceled`** propagates to its sub-issues. The epic doesn't run the build SDLC as a unit — its builds do — but it may sit in **`in code review`** two ways: *non-critically* when every sub-issue is in review (a passive readout), or as a deliberate **human-approval gate** that blocks the epic until a human signs off. See [planning](../planning/SKILL.md) → "The milestone in Linear". *This doc is the body format; the body is the Linear description, iterated in place.*
 
 ## How execution tickets decompose
 
@@ -18,6 +18,34 @@ Execution tickets plan the work **for subagent execution** — written so an age
 
 **Pin the facts.** While painting how the implementation goes, surface the **open questions** and the **load-bearing facts**. Every load-bearing fact must be pinned to reality — a GitHub permalink, a dependency on a prior ticket's output, or a recorded *"we looked and found."* **An unpinned load-bearing fact means the execution still contains a spike** — pin it before the dependent build is started.
 
+## Distill nodes — durable records are ticketed work
+
+Most nodes consume and produce *code contracts*. A **distill node** is the special kind whose input is a **segment of an execution graph** itself: it partitions the segment into **tracks** — each track a path through the DAG telling one story (a spike, the decision gate its evidence closed, the builds that carried it out, any corrective builds a review added) — runs the earn-it test per track, and its `Provides` is the durable records that survive ([methodology](../methodology/SKILL.md) → "Durable records").
+
+```mermaid
+graph TD
+  SEG["segment of an execution graph<br/>(the whole graph, or any closed sub-section)"] --> DST["distill node<br/>partition into tracks · earn-it test per track"]
+  DST --> REC["durable records<br/>ADRs (decision tracks) · recipes (procedure tracks)"]
+  DST -.->|"tracks that fail the test"| NO["no record — evidence<br/>stays on the tickets"]
+  classDef in fill:#cfe2f3,stroke:#0066cc,color:#111;
+  classDef d fill:#fff2cc,stroke:#bf9000,color:#111;
+  classDef out fill:#d9ead3,stroke:#38761d,color:#111;
+  class SEG in; class DST,NO d; class REC out;
+```
+
+**When it runs:** it *can* run at any point in the methodology, but its home is **within execution — and always before the execution is concluded complete**:
+
+- **Mid-execution (segment-scoped).** Any closed sub-section of the graph — a finished track, a decision gate that just resolved — can be distilled while the evidence is fresh, without waiting for the whole epic.
+- **Before the completion gate (whole-graph).** The execution is **not concluded complete** until a distill pass has run over its full graph: ADRs for the decision tracks that pass the earn-it test, recipes ([recipe](../recipe/SKILL.md)) for the recurring tracks whose path was non-obvious.
+
+Scoping does **not** run this pass — the next scope *consumes* the records it left (the glossary + ADRs come in as grilling's rubric, [grill](../grill/SKILL.md)). This is the no-unticketed-work rule applied to documentation: distillation appears **in the DAG as a node**, with its input segment named — never as an offline ritual someone may or may not remember.
+
+**Worked example** (tracks of a finished epic, judged): the track *resolution spike → boundary decision gate → two corrective builds* tells one decision story — identity resolves at one service's boundary and the graph node carries only the canonical id. Hard to reverse, surprising, real alternative (resolve it in the consuming service) → **ADR**. The track *add the column → expose the read-seam* is the obvious path with no rival — fails the test → no record; its evidence stays on the tickets. One ADR from four builds: the pass distills *tracks*, it doesn't transcribe the DAG.
+
+## Plan nodes — ticket creation is DAG work
+
+When later builds can't be contracted yet — their shape conditions on an upstream contract that isn't ratified — don't pre-mint vague tickets and don't leave the gap as prose in `## Status`. Insert a **plan node**: a node whose `Consumes` is the ratified upstream contract (or spike evidence) and whose `Provides` is **the next tranche of child tickets**, created and ratified in one pass. Un-ticketed mermaid nodes render as ghosts (gray) until their plan node runs; an execution with ghost nodes and *no* plan node saying when they become real carries an unstated edge. Planning happens in dependency order too — the DAG should show it.
+
 ## Required sections
 
 - **Execution DAG** — the mermaid: spikes → decision gates → builds → exit.
@@ -27,32 +55,66 @@ Execution tickets plan the work **for subagent execution** — written so an age
 - **Completion gate** — the **final task all leaves feed**; the execution ticket isn't done until it passes (the convergence build, or the "all PRs merged" check). Every execution ticket has one. It also **verifies the structural contract held**: no two branches define the same structure, and every `Consumes` resolved to its `Provides` — the detective complement to type-first planning, robust to the realistic case where up-front enumeration was imperfect.
 - **Status** — what's keeping the flow from being fully defined.
 
-## Skeleton
+## The DAG is live — propagate every structural change onto the parent (requirement)
 
-```markdown
-*Execution epic — holds the DAG + owns the work. Canonical scope/view: <scope link>.*
+The execution ticket **is** the source of truth for the DAG, and the DAG must never lag the work. Any change to the set of leaves — **adding** a build (a review or spike surfaced a new one), **removing/superseding** one, **re-sequencing** an edge, or **promoting** a build to its own execution ticket — is **not complete until it is propagated onto this ticket in the same unit of work**. A sub-build that exists in Linear but not in the parent's DAG is an **unstated edge** — the same failure `Provides`/`Consumes` guards against, one level up — and it silently makes the epic read done while work is missing.
 
-## Execution DAG
+When a new build is created under an execution ticket, propagation means, on the parent:
+
+1. **Execution DAG** — add the node with its real dependency edges (its `blocked-by` → inbound, its `blocks` → outbound); apply transitive reduction so the new node sits *in* the path, not beside it.
+2. **The work** — add its one-line scope, linked, with its `Provides`/`Consumes` traced to the builds it sits between.
+3. **Decision gates** — if a decision sized it, flip that gate to `DECIDED: …` naming the evidence (e.g. the review/spike that surfaced it).
+4. **Exit / Completion gate** — re-confirm it still holds: a new leaf must feed the gate, and the Exit contract is still the union of the builds' `Provides`.
+
+This is **part of creating (or removing) the sub-build, not a follow-up task** — the parent's DAG and its children never diverge, so anyone reading the epic cold sees the true shape. The removal/supersession direction of this same rule (strike the node, collapse the DAG, carry the *why* into the survivor) is in [planning](../planning/SKILL.md) → "When built work is removed or superseded"; this section is its general, every-direction statement. Worked instance: a concurrency-guard build surfaced straight from a PR review, and the parent's DAG, work list, and decision gates were updated in the same pass that created it.
+
+## This skill, as an execution ticket
+
+The format explains itself best by *being* an instance. Below is the execution ticket that produced **this very doc** — every required section filled, its subject the doc you're reading. (Want a blank skeleton? It's this, with the values cleared.)
+
+---
+
+*Execution epic — holds the DAG + owns the work. Canonical scope/view: this doc (the execution-ticket skill).*
+
+**Execution DAG**
+
 ```mermaid
 graph TD
-  S1[spike] --> DEC{decision gate} --> B1[build]
-  B1 --> OUT[milestone delivered → hands the next its contract]
+  S1["spike · what minimal section set<br/>lets a reader write one?"] --> DEC{"blank skeleton<br/>or filled meta-example?"}
+  RULES["build · decompose rules<br/>provides: the boundary test"] --> REF["build · Required sections<br/>provides: section vocabulary"]
+  DEC --> REF
+  REF --> META["build · THIS example<br/>consumes: section vocabulary"]
+  RULES --> LAND["build · landing model<br/>branch tree = DAG"]
+  META --> GATE["completion gate · a stranger writes a conformant<br/>execution ticket from this doc alone"]
+  LAND --> GATE
+  classDef s fill:#fff2cc,stroke:#bf9000,color:#111;
+  classDef b fill:#cfe2f3,stroke:#0066cc,color:#111;
+  classDef g fill:#d9ead3,stroke:#38761d,color:#111;
+  class S1,DEC s; class RULES,REF,META,LAND b; class GATE g;
 ```
 
-## The work (high level)
-- S1 · <spike> — <link> → defines B1
-- B1 · <build> — <link> · branch `<branch>` · in-progress when started (acceptance = S1's metric sheet)
-- GATE · <completion gate> — <link> (all builds feed this; gates the ticket's completion)
+**The work**
 
-## Decision gates
-- <fork> — resolved by <spike evidence>.  (flip to "DECIDED: <x>" once closed)
+- `S1` · spike — what is the *minimal* set of sections a reader needs to produce a conformant ticket? → sized the builds. **Result:** six (DAG · work · decision gates · exit · completion gate · status).
+- `RULES` · build — the **decompose rules** (boundary-is-a-test, contracts-define-edges, pin-every-fact). *Provides:* the boundary test the rest lean on.
+- `REF` · build — the **Required sections** reference. *Consumes:* `RULES`. *Provides:* the section vocabulary. (acceptance = six sections, each named with its purpose)
+- `META` · build — **this example**, the format demonstrating itself. *Consumes:* `REF`'s vocabulary. (acceptance = every required section present, filled, subject = this doc)
+- `LAND` · build — the **landing** model (branch tree mirrors the DAG; stacked-PRs vs. one-PR).
+- `GATE` · completion — all leaves feed it: a reader who's never seen the format can write one **from this doc alone** (the two-stranger test).
 
-## Exit
-<the contract handed to the next milestone>
+**Decision gates**
 
-## Status
-<what's keeping the flow from being fully defined>
-```
+- *Blank skeleton, or a filled meta-example?* — **DECIDED: meta-example.** A filled instance teaches better than an empty template, and a self-referential one proves the format can carry its own explanation.
+
+**Exit**
+
+The contract handed onward: **a reader can author a conformant execution ticket** — right sections, a real DAG, contracts on the edges, a completion gate. Every downstream [build ticket](SKILL.md) consumes this.
+
+**Status**
+
+**Realized** — the build leaves above are merged; you're reading their output. (An execution ticket sits `coding` until its leaves land; this one's have, so it's `done`.)
+
+---
 
 ## Realizing the DAG as PRs (landing the work)
 
@@ -79,6 +141,4 @@ graph TD
 - **Choose the PR strategy — recorded on this ticket — by reviewer cognitive load + coupling:**
   - **Stacked per-build PRs** — each build its own PR, merged in topological order. Each PR **links the PR(s) it sits on and the next to merge**, and embeds the execution DAG with the **merge frontier marked** (merged = green · this PR = current · blocked-behind = gray).
   - **One execution PR** — the whole execution branch lands as a single PR; **link the execution ticket only and show its DAG**.
-- A build's author-side finish is `Complete` = implemented + PR-open ([SKILL.md](SKILL.md)); the pipeline closes it. Merge order is the DAG's topological order, ending at the **completion gate**.
-
-Worked example: `CMD-1765` (M2a · execution).
+- A build's author-side finish is `in code review` = implemented + PR-open ([SKILL.md](SKILL.md)); the pipeline closes it. Merge order is the DAG's topological order, ending at the **completion gate**.

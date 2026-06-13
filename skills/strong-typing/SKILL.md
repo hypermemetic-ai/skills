@@ -5,9 +5,13 @@ description: Use when a codebase passes bare `String`, `i64`, or `Uuid` for dist
 
 # Skill: Strong Type a Domain
 
+**In one line:** give each domain concept its own type so the compiler catches the misuse a bare `string`/`uuid` was silently allowing.
+
 Newtypes are the type system's version of a sufficient statistic. A function taking `FormSlug` doesn't re-validate that the string is a slug — the evidence that it *is* a slug is carried in the type. Every downstream caller can condition on that evidence without re-deriving it.
 
 This is the same principle that ticket `## Evidence` sections apply at the documentation layer, but enforced by the compiler. Where ticket evidence asks reviewers to check the reasoning, type evidence asks the compiler to check it on every call site.
+
+**The glossary is this skill's upstream.** The repo glossary (`CONTEXT.md`) and the type system are the same discipline at two altitudes: the glossary gives each domain concept one agreed *word* so humans catch misuse; a newtype gives it one *type* so the compiler does. The pipeline is **grill → glossary → newtype**: a term resolved during scope grilling ([grill](../grill/SKILL.md)) — `Customer`, not "account" — becomes the newtype's name (`CustomerID`, not `string`). A term flagged "newly invented" on a scope ticket's `## Language` is this skill's work order.
 
 ## When to use
 
@@ -114,6 +118,7 @@ A newtype that demands re-validation by every caller has lost its claim to be a 
 
 ## Pointers
 
-- Convention: `~/CLAUDE.md` → "Strong Typing Rule"
+- Convention: `../../AGENTS.md` → "Conventions › Strong Typing Rule"
+- The glossary upstream (grill → glossary → newtype): `../grill/SKILL.md`
 - How tickets reference types in contracts: `../ticketing/SKILL.md` → Rule 9
-- Where to introduce them in a Plexus backend: at the activation method boundary in `<plugin>/types.rs` — see `../create-plexus-backend/SKILL.md`
+- Where to introduce them: at the wire boundary — the handler / RPC entry where external values are first validated (e.g. app-cm user-service gRPC + Echo handlers).

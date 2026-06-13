@@ -1,9 +1,11 @@
 ---
 name: diagramming
-description: Use whenever you construct information for a human to consume — a plan, ticket, concept doc, review, explanation. Prioritize the highest-density faithful representation: a diagram compresses language into an image. Diagram over prose, draw a system from several lenses (see lenses.md), pick the form that compresses the data best, and avoid the layout gotchas that break rendering. Referenced by planning, ticketing, and concept-mapping.
+description: Use whenever you construct information for a human to consume — a plan, ticket, concept doc, review, explanation. Prioritize the highest-density faithful representation: a diagram compresses language into an image. Diagram over prose, draw a system from several lenses (see lenses.md), pick the form that compresses the data best, and avoid the layout gotchas that break rendering. Referenced by planning and ticketing.
 ---
 
 # Skill: Diagramming — high-density representations for human consumption
+
+**In one line:** when you build information for a human, lead with the picture — a diagram lands a shape in one glance that prose makes them reassemble line by line.
 
 **Any time you construct information *for a human*, prioritize the highest-density representation that's still faithful.** The reader's bandwidth is the bottleneck. Prose is low-density and serial; a diagram is high-density and parallel — its shape lands in one glance. The author pays the compression once; every reader saves it. Diagramming is the sharpest instance — the goal is broader: reach for the efficient representation by default.
 
@@ -18,10 +20,10 @@ description: Use whenever you construct information for a human to consume — a
 ## Gotchas — layouts that break the render
 
 - **Don't fan many siblings onto one rank.** `A → {nine children}` is a single row far wider than any column; the renderer scales it down until boxes and labels collide. Split into separate diagrams or pick a different shape. Grouping into a tree does **not** help — in a mermaid flowchart all the leaves still share one rank.
-- **Keep subgraph titles short and one-line.** A long title that wraps on a single-rank (short) subgraph overflows *down onto its nodes* (real example: CMD-1769). Shorten the title, or stack the subgraph's nodes (`A ~~~ B ~~~ C`) so the box is tall enough for the title band to clear.
+- **Keep subgraph titles short and one-line.** A long title that wraps on a single-rank (short) subgraph overflows *down onto its nodes* (example: CMD-380). Shorten the title, or stack the subgraph's nodes (`A ~~~ B ~~~ C`) so the box is tall enough for the title band to clear.
 - **Smell test.** If a diagram needs three paragraphs to explain it, it's the wrong diagram; if a section is three paragraphs describing how things connect, it wants a diagram.
 
 ## Pointers
 
 - Lens set + drawn gallery: **`lenses.md`** (sibling)
-- Used by: `../planning/SKILL.md` · `../ticketing/SKILL.md` · `../methodology/SKILL.md`; concept-mapping (`cn-cm2-skills`)
+- Used by: `../planning/SKILL.md` · `../ticketing/SKILL.md` · `../methodology/SKILL.md`

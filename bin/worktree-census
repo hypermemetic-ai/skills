@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# worktree-census — one-command staleness check for git worktrees.
+#
+# Maps every worktree → branch → ticket id (from the naming convention:
+# Linear-generated branch names / ticket-named worktree dirs carry cmd-NNNN)
+# → open-PR relation, and flags disposition candidates:
+#
+#   here      the worktree you're running from
+#   PR-OPEN   branch heads an open PR — live root, keep
+#   keep      reachable-looking; no flag earned
+#   COLLECT?  clean + pushed + merged to origin/main — removable IF ticket is done/canceled
+#   ARCHIVE?  unpushed/unmerged commits — needs the Linear-ticketed archive path
+#   RESCUE?   dirty tree (untracked included) — triage contents before anything
+#
+# PR column (gh IS shell-available, unlike Linear):
+#   #N        this worktree's branch heads open PR #N
+#   ⊂#N       this HEAD is contained in open PR #N's head branch (content is live)
+#
+# The trailing "?" is load-bearing: ticket STATE is not derivable from git.
+# Resolving it is a Linear MCP lookup today (feed the TICKET column to
+# get_issue). If Linear API keys ever land, fold that lookup into this
+# script and the "?" disappears.
+set -uo pipefail
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "not a git repo" >&2; exit 2; }
+cd "$root"
+git fetch origin --quiet 2>/dev/null || true
+main_ref=origin/main
+git rev-parse -q --verify "$main_ref" >/dev/null 2>&1 || main_ref=main
+
+# number<TAB>headRefName per open PR
+pr_data=$(gh pr list --state open --limit 200 --json number,headRefName \
+  --jq '.[] | "\(.number)\t\(.headRefName)"' 2>/dev/null || true)
+
+pr_for_branch() { # exact head match → "#N"
+  [ -n "$pr_data" ] || return 0
+  printf '%s\n' "$pr_data" | awk -F'\t' -v b="$1" '$2==b{printf "#%s",$1; exit}'
+}
+pr_containing() { # sha contained in some open-PR head branch → "⊂#N"
+  [ -n "$pr_data" ] || return 0
+  local sha=$1 contained
+  contained=$(git branch -r --contains "$sha" 2>/dev/null | sed 's|^ *origin/||')
+  [ -n "$contained" ] || return 0
+  printf '%s\n' "$pr_data" | while IFS=$'\t' read -r num head; do
+    printf '%s\n' "$contained" | grep -qxF "$head" && { printf '⊂#%s' "$num"; break; }
+  done
+}
+
+printf '%-30s %-44s %-10s %-8s %-6s %-9s %-7s %-12s %s\n' \
+  WORKTREE BRANCH TICKET PR DIRTY UNPUSHED MERGED LAST-COMMIT FLAG
+
+git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt; do
+  head=$(git -C "$wt" rev-parse HEAD 2>/dev/null) || continue
+  br=$(git -C "$wt" branch --show-current 2>/dev/null)
+  [ -n "$br" ] || br="(detached)"
+  ticket=$(printf '%s\n%s\n' "$br" "$(basename "$wt")" \
+    | grep -oiE '[a-z]+-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]')
+  pr=""
+  [ "$br" != "(detached)" ] && pr=$(pr_for_branch "$br")
+  [ -n "$pr" ] || pr=$(pr_containing "$head")
+  dirty=clean
+  [ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ] && dirty=DIRTY
+  unpushed=no
+  if [ "$br" != "(detached)" ]; then
+    if git rev-parse -q --verify "refs/remotes/origin/$br" >/dev/null 2>&1; then
+      [ "$(git rev-list --count "origin/$br..$br" 2>/dev/null || echo 1)" = "0" ] || unpushed=YES
+    else
+      unpushed=NOREMOTE
+    fi
+  fi
+  merged=no
+  git merge-base --is-ancestor "$head" "$main_ref" 2>/dev/null && merged=yes
+  age=$(git -C "$wt" log -1 --format=%cs 2>/dev/null)
+  flag=keep
+  if [ "$dirty" = DIRTY ]; then flag='RESCUE?'
+  elif [ "$merged" = yes ] && [ "$unpushed" = no ]; then flag='COLLECT?'
+  elif [ "$unpushed" != no ] || [ "$merged" = no ]; then flag='ARCHIVE?'
+  fi
+  case "$pr" in
+    "#"*) flag=PR-OPEN ;;                                  # branch heads an open PR — live root
+    "⊂"*) [ "$flag" = 'ARCHIVE?' ] && flag='COLLECT?' ;;   # clean + content lives on an open PR
+  esac
+  [ "$wt" = "$root" ] && flag=here
+  printf '%-30s %-44s %-10s %-8s %-6s %-9s %-7s %-12s %s\n' \
+    "$(basename "$wt")" "$br" "${ticket:--}" "${pr:--}" "$dirty" "$unpushed" "$merged" "${age:--}" "$flag"
+done
+
+echo
+echo "PR: #N = branch heads that open PR · ⊂#N = HEAD contained in that PR's branch (content live)."
+echo "'?' = ticket state unknown to git. Resolve via Linear MCP (get_issue on the TICKET column)."
