@@ -129,7 +129,9 @@ Name each unit's `## Provides` and `## Consumes`, produce before consume, extrac
 
 ## Spikes — evidence-gathering, not binary gates
 
-A spike is a micro-experiment that gathers evidence about an unknown. Its output **updates the confidence prior** on the unlocked ticket — it doesn't just flip a pass/fail bit.
+A spike is a micro-experiment that gathers evidence about an unknown. Its output **updates the confidence prior** on the unlocked ticket — it doesn't just flip a pass/fail bit (though it always *has* a binary pass/fail headline; the evidence is the payload).
+
+**The spike is also the research primitive — and can precede the scope.** Most spikes hang off an execution to resolve a build-unknown. But a spike can sit at the very front — `user input → spike → scope` — when the input is research-shaped or brownfield (a heap of found documents with no relationships): the spike cites the found material as evidence and **`supports`** the scope it gives rise to. `supports` is an *advisory* edge — it never enters the readiness query (only `depends_on` blocks), which is exactly what lets a research spike point at anything (found docs, another DAG's head) without entangling the dependency graph. (This is the same primitive — not a new node kind; brownfield arrangement mechanics live in the tracker-interface skill.)
 
 **A spike is an unpinned load-bearing fact.** A load-bearing fact must be pinned to reality — a permalink, a prior ticket's output, a recorded *"we looked and found X."* An unpinned one is a latent spike; the plan isn't done until every load-bearing fact is pinned or has a spike whose job is to pin it.
 
@@ -141,7 +143,8 @@ A spike is a micro-experiment that gathers evidence about an unknown. Its output
 4. **Aggregate across spikes** bearing on one contract: S-02 inherits S-01's partial evidence and asks the next narrower question.
 5. **Update the prior** — a pass usually moves `low → medium/high`; an uncovered constraint can move `medium → low` or trigger replanning.
 6. **All spikes fail → the risk is a confirmed constraint.** Document it, replan downstream. That's the plan *working*, not failing.
-7. **Spike code lives in `spike/<execution>/`** next to the code it probes, as standalone programs.
+7. **Spikes recurse — fail-loud; evidence flows to the consumer.** A broad research spike spawns child spikes; it is `done` only when all children are, and **passes iff every child passed — any child fail ⇒ the parent fails** (fail-loud, so one failure can't hide behind a mostly-green aggregate). A failed spike is not a dead end: it `done`s carrying its evidence, and the `supports` consumer (the scope / execution / build it underpins) decides what of the findings still holds and which initial assumptions must change.
+8. **Spike code lives in `spike/<execution>/`** next to the code it probes, as standalone programs.
 
 **Run spikes count-first, under an explicit token/effort ceiling.** Count before you read (grep/ast-grep for counts + file lists; 1–2 excerpts per category, never whole files); sub-investigations return the metric sheet, not file dumps; stop-and-report if the ceiling nears without convergence. A spike is bounded discovery, not implementation.
 
