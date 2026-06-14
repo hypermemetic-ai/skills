@@ -1,8 +1,8 @@
 # Execution ticket
 
-The *how/sequence* of a milestone — an **epic that holds the DAG and owns the work as sub-issues** (spikes, builds). One per milestone. Owns the **sequence, not the rationale** (that's the [scope ticket](scope-ticket.md)). Diagram-led — lead with the DAG (see the [diagramming](../diagramming/SKILL.md) skill).
+The *how/sequence* of a milestone — an **execution ticket that holds the DAG and owns the work as child tickets** (spikes, builds). One per milestone. Owns the **sequence, not the rationale** (that's the [scope ticket](scope-ticket.md)). Diagram-led — lead with the DAG (see the [diagramming](../diagramming/SKILL.md) skill).
 
-> **Lifecycle (CMD Linear states):** `Triage` (undecided) → `new` (startup, via `coding queue`) → **`coding`** (active — stays here, continuously in progress, *as long as any sub-issue is unresolved*) → `done` (goal met + completion gate). **`canceled`** propagates to its sub-issues. The epic doesn't run the build SDLC as a unit — its builds do — but it may sit in **`in code review`** two ways: *non-critically* when every sub-issue is in review (a passive readout), or as a deliberate **human-approval gate** that blocks the epic until a human signs off. See [planning](../planning/SKILL.md) → "The milestone in Linear". *This doc is the body format; the body is the Linear description, iterated in place.*
+> **Lifecycle (lifecycle states):** **Pending** (undecided) → **Ready** (ratified, eligible to start) → **active** (stays here, continuously in progress, *as long as any child ticket is unresolved*) → **done** (goal met + completion gate). **archived** propagates to its child tickets (always with a pointer; never silent). The execution ticket doesn't run the build SDLC as a unit — its builds do — but it may sit in **in review** two ways: *non-critically* when every child ticket is in review (a passive readout), or as a deliberate **human-approval gate** that blocks the execution ticket until a human signs off. See [planning](../planning/SKILL.md) → "The milestone in the tracker". *This doc is the body format; the body is the ticket body, iterated in place.*
 
 ## How execution tickets decompose
 
@@ -35,12 +35,12 @@ graph TD
 
 **When it runs:** it *can* run at any point in the methodology, but its home is **within execution — and always before the execution is concluded complete**:
 
-- **Mid-execution (segment-scoped).** Any closed sub-section of the graph — a finished track, a decision gate that just resolved — can be distilled while the evidence is fresh, without waiting for the whole epic.
+- **Mid-execution (segment-scoped).** Any closed sub-section of the graph — a finished track, a decision gate that just resolved — can be distilled while the evidence is fresh, without waiting for the whole execution ticket.
 - **Before the completion gate (whole-graph).** The execution is **not concluded complete** until a distill pass has run over its full graph: ADRs for the decision tracks that pass the earn-it test, recipes ([recipe](../recipe/SKILL.md)) for the recurring tracks whose path was non-obvious.
 
 Scoping does **not** run this pass — the next scope *consumes* the records it left (the glossary + ADRs come in as grilling's rubric, [grill](../grill/SKILL.md)). This is the no-unticketed-work rule applied to documentation: distillation appears **in the DAG as a node**, with its input segment named — never as an offline ritual someone may or may not remember.
 
-**Worked example** (tracks of a finished epic, judged): the track *resolution spike → boundary decision gate → two corrective builds* tells one decision story — identity resolves at one service's boundary and the graph node carries only the canonical id. Hard to reverse, surprising, real alternative (resolve it in the consuming service) → **ADR**. The track *add the column → expose the read-seam* is the obvious path with no rival — fails the test → no record; its evidence stays on the tickets. One ADR from four builds: the pass distills *tracks*, it doesn't transcribe the DAG.
+**Worked example** (tracks of a finished execution ticket, judged): the track *resolution spike → boundary decision gate → two corrective builds* tells one decision story — identity resolves at one service's boundary and the graph node carries only the canonical id. Hard to reverse, surprising, real alternative (resolve it in the consuming service) → **ADR**. The track *add the column → expose the read-seam* is the obvious path with no rival — fails the test → no record; its evidence stays on the tickets. One ADR from four builds: the pass distills *tracks*, it doesn't transcribe the DAG.
 
 ## Plan nodes — ticket creation is DAG work
 
@@ -57,16 +57,16 @@ When later builds can't be contracted yet — their shape conditions on an upstr
 
 ## The DAG is live — propagate every structural change onto the parent (requirement)
 
-The execution ticket **is** the source of truth for the DAG, and the DAG must never lag the work. Any change to the set of leaves — **adding** a build (a review or spike surfaced a new one), **removing/superseding** one, **re-sequencing** an edge, or **promoting** a build to its own execution ticket — is **not complete until it is propagated onto this ticket in the same unit of work**. A sub-build that exists in Linear but not in the parent's DAG is an **unstated edge** — the same failure `Provides`/`Consumes` guards against, one level up — and it silently makes the epic read done while work is missing.
+The execution ticket **is** the source of truth for the DAG, and the DAG must never lag the work. Any change to the set of leaves — **adding** a build (a review or spike surfaced a new one), **removing/superseding** one, **re-sequencing** an edge, or **promoting** a build to its own execution ticket — is **not complete until it is propagated onto this ticket in the same unit of work**. A sub-build that exists in the tracker but not in the parent's DAG is an **unstated edge** — the same failure `Provides`/`Consumes` guards against, one level up — and it silently makes the execution ticket read done while work is missing.
 
 When a new build is created under an execution ticket, propagation means, on the parent:
 
-1. **Execution DAG** — add the node with its real dependency edges (its `blocked-by` → inbound, its `blocks` → outbound); apply transitive reduction so the new node sits *in* the path, not beside it.
+1. **Execution DAG** — add the node with its real dependency edges (its depends-on → inbound, its depended-on-by → outbound); apply transitive reduction so the new node sits *in* the path, not beside it.
 2. **The work** — add its one-line scope, linked, with its `Provides`/`Consumes` traced to the builds it sits between.
 3. **Decision gates** — if a decision sized it, flip that gate to `DECIDED: …` naming the evidence (e.g. the review/spike that surfaced it).
 4. **Exit / Completion gate** — re-confirm it still holds: a new leaf must feed the gate, and the Exit contract is still the union of the builds' `Provides`.
 
-This is **part of creating (or removing) the sub-build, not a follow-up task** — the parent's DAG and its children never diverge, so anyone reading the epic cold sees the true shape. The removal/supersession direction of this same rule (strike the node, collapse the DAG, carry the *why* into the survivor) is in [planning](../planning/SKILL.md) → "When built work is removed or superseded"; this section is its general, every-direction statement. Worked instance: a concurrency-guard build surfaced straight from a PR review, and the parent's DAG, work list, and decision gates were updated in the same pass that created it.
+This is **part of creating (or removing) the sub-build, not a follow-up task** — the parent's DAG and its children never diverge, so anyone reading the execution ticket cold sees the true shape. The removal/supersession direction of this same rule (strike the node, collapse the DAG, carry the *why* into the survivor) is in [planning](../planning/SKILL.md) → "When built work is removed or superseded"; this section is its general, every-direction statement. Worked instance: a concurrency-guard build surfaced straight from a PR review, and the parent's DAG, work list, and decision gates were updated in the same pass that created it.
 
 ## This skill, as an execution ticket
 
@@ -74,7 +74,7 @@ The format explains itself best by *being* an instance. Below is the execution t
 
 ---
 
-*Execution epic — holds the DAG + owns the work. Canonical scope/view: this doc (the execution-ticket skill).*
+*Execution ticket — holds the DAG + owns the work. Canonical scope/view: this doc (the execution-ticket skill).*
 
 **Execution DAG**
 
@@ -112,7 +112,7 @@ The contract handed onward: **a reader can author a conformant execution ticket*
 
 **Status**
 
-**Realized** — the build leaves above are merged; you're reading their output. (An execution ticket sits `coding` until its leaves land; this one's have, so it's `done`.)
+**Realized** — the build leaves above are merged; you're reading their output. (An execution ticket sits **active** until its leaves land; this one's have, so it's **done**.)
 
 ---
 
@@ -141,4 +141,4 @@ graph TD
 - **Choose the PR strategy — recorded on this ticket — by reviewer cognitive load + coupling:**
   - **Stacked per-build PRs** — each build its own PR, merged in topological order. Each PR **links the PR(s) it sits on and the next to merge**, and embeds the execution DAG with the **merge frontier marked** (merged = green · this PR = current · blocked-behind = gray).
   - **One execution PR** — the whole execution branch lands as a single PR; **link the execution ticket only and show its DAG**.
-- A build's author-side finish is `in code review` = implemented + PR-open ([SKILL.md](SKILL.md)); the pipeline closes it. Merge order is the DAG's topological order, ending at the **completion gate**.
+- A build's author-side finish is **in review** = implemented + change open ([SKILL.md](SKILL.md)); the pipeline closes it. Merge order is the DAG's topological order, ending at the **completion gate**.

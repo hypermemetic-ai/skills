@@ -13,7 +13,7 @@ The output is a grounded "where it's at" review — ticket-intent vs. what the d
 
 ## When to use
 
-- Starting (or resuming) a session cold: "where am I", "review the current PR", "orient on the work in flight", "what's in coding for me".
+- Starting (or resuming) a session cold: "where am I", "review the current PR", "orient on the work in flight", "what's active for me".
 - Before reviewing a PR — your own or a teammate's — when you need the surrounding context (tickets, conventions, stacking) loaded, not just the diff.
 - Any time the conversation has decayed and you need conversation-state rebuilt from artifact-state.
 
@@ -41,19 +41,19 @@ A grounded review delivered in chat (no artifact written unless asked):
 - Each finding **cited** to a skill rule or a **verified** code path (`file:line`).
 - What was and was **not** test-verified.
 
-Any follow-on Linear writes (new tickets, status moves) follow the normal `Triage` / human-ratify flow — see `../ticketing/SKILL.md` and `../planning/SKILL.md` → "The milestone in Linear".
+Any follow-on tracker writes (new tickets, status moves) follow the normal **Pending** / human-ratify flow — see `../ticketing/SKILL.md` and `../planning/SKILL.md` → "The milestone in the tracker".
 
 ## Process
 
 Do these in order. The order is the point — step 1 before any code.
 
 1. **Load the lenses first (before forming any opinion).** Read the methodology skills that govern the work — `../methodology/SKILL.md`, `../planning/SKILL.md`, `../ticketing/SKILL.md` (especially the build vs. execution vs. scope ticket kinds) — and the project's own skills for the area the diff touches: read the repo's `AGENTS.md`, then the relevant `.claude/skills/*`. *(In app-cm: `graph-nodes` for any vertex/edge work, `go-backend`, `generated-code`, `test-planning`.)* These skills are the **rubric you review against**; reading them *after* forming an opinion means re-reviewing.
-2. **Establish git ground truth — including the workspace census.** Current branch / worktree (`git branch --show-current` — note a detached HEAD), recent commits (`git log --oneline`), the remote — and **one command for the worktrees**: `bin/worktree-census` (this repo). It maps every worktree → branch → ticket id (naming convention) and flags `COLLECT?`/`ARCHIVE?`/`RESCUE?` candidates. The `?` marks what git can't know — ticket state — resolved via Linear MCP (`get_issue` on the TICKET column; no Linear API keys exist for shell use today, so the lookup can't fold into the command yet). Flagged rows go in the report as **workspace findings**; execution follows the [cleanup recipe](../../docs/recipes/_common/clean-up-worktrees.md) after ratification.
-3. **Find the work in flight.** Linear `list_issues` assignee = `me`, state = `coding` (and adjacent in-progress states). Separate the **execution/scope epics** (they stay in-progress by design) from the **build tickets** — the builds are the actual work.
-4. **Map branch → PR.** `git branch -a --contains HEAD` shows which branches hold the current commit; `gh pr list` (sorted desc) and `gh pr list --head <branch>` resolve the PR. Pick the active one and cross-check it against the in-progress ticket (its `gitBranchName` / attachments). In a stacked PR, note the base — line references are against the head.
+2. **Establish git ground truth — including the workspace census.** Current branch / worktree (`git branch --show-current` — note a detached HEAD), recent commits (`git log --oneline`), the remote — and **one command for the worktrees**: `bin/worktree-census` (this repo). It maps every worktree → branch → ticket id (naming convention) and flags `COLLECT?`/`ARCHIVE?`/`RESCUE?` candidates. The `?` marks what git can't know — ticket state — resolved by querying the tracker for the ticket's state. Flagged rows go in the report as **workspace findings**; execution follows the [cleanup recipe](../../docs/recipes/_common/clean-up-worktrees.md) after ratification.
+3. **Find the work in flight.** Query the tracker for tickets assigned to me in an in-progress state (**active**, and adjacent in-progress states). Separate the **execution/scope epics** (they stay in-progress by design) from the **build tickets** — the builds are the actual work.
+4. **Map branch → PR.** `git branch -a --contains HEAD` shows which branches hold the current commit; `gh pr list` (sorted desc) and `gh pr list --head <branch>` resolve the PR. Pick the active one and cross-check it against the in-progress ticket (its branch name / attachments). In a stacked PR, note the base — line references are against the head.
 5. **Pull the PR whole.** `gh pr view` (metadata: draft? base? mergeable? stacking), the body, `gh pr diff` (full), and existing review threads (`--json reviews,comments`).
-6. **Pull the tickets behind it.** `get_issue` for every ticket the PR claims — and **follow the trail**: a ticket like "corrective build surfaced in review of #N" means the PR may already be *past* its own description.
-7. **Reconcile code vs. prose.** The diff is ground truth; the PR body and ticket prose lag it. Diff the **commit log** against the description — a build whose commits are in the PR but whose ticket still says `coding`, or a body describing a shape the code has already superseded, **is a finding** (`../planning` → the doc/tracker is a projection; evidence must travel with the code, not only commit messages).
+6. **Pull the tickets behind it.** Read every ticket the PR claims — and **follow the trail**: a ticket like "corrective build surfaced in review of #N" means the PR may already be *past* its own description.
+7. **Reconcile code vs. prose.** The diff is ground truth; the PR body and ticket prose lag it. Diff the **commit log** against the description — a build whose commits are in the PR but whose ticket still says **active**, or a body describing a shape the code has already superseded, **is a finding** (`../planning` → the doc/tracker is a projection; evidence must travel with the code, not only commit messages).
 8. **Verify, don't trust.** Check the PR branch out into the review worktree; build the touched packages and run the infra-free tests yourself; spot-check the load-bearing claims — a "soft delete", an "index-backed point lookup", a "v7 id" — against the actual implementation. Never restate the PR's "tests green" without running what you can; name what needs live infra and was skipped.
 9. **Report against the rubric.** Lead with ticket-intent → how-accomplished, then findings by severity, each grounded in a skill rule or a verified path. Calibrate any security-shaped finding by direction-of-impact (`../../AGENTS.md` → Conventions › Direction-of-Impact).
 
@@ -78,7 +78,7 @@ Do these in order. The order is the point — step 1 before any code.
 
 **Good code-vs-prose reconciliation:**
 
-> The commit log shows the corrective build already pushed (`feat(CMD-XXXX): collapse the node to the canonical id …`), but the PR body still describes the superseded design and the ticket is still `coding`. Code is ahead of both artifacts — that's the headline, not the diff.
+> The commit log shows the corrective build already pushed (`feat(CMD-XXXX): collapse the node to the canonical id …`), but the PR body still describes the superseded design and the ticket is still **active**. Code is ahead of both artifacts — that's the headline, not the diff.
 
 ## Pointers
 

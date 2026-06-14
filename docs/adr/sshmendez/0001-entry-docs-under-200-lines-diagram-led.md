@@ -8,7 +8,7 @@ Date: 2026-06-12 · Status: accepted
 
 ## Decision
 
-Entry-point docs sshmendez owns (the methodology first) stay **under 200 lines** and lead with the structural diagrams: the node-kind map (what each kind does for itself / what it can become), the Linear state machine, and one example tree with a mid-flight walkthrough. Depth lives in the per-kind skills, not the entry doc.
+Entry-point docs sshmendez owns (the methodology first) stay **under 200 lines** and lead with the structural diagrams: the node-kind map (what each kind does for itself / what it can become), the tracker state model, and one example tree with a mid-flight walkthrough. Depth lives in the per-kind skills, not the entry doc.
 
 ## Why
 

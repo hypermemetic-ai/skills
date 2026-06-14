@@ -4,7 +4,7 @@ Date: 2026-06-12 · Status: accepted
 
 ## Context
 
-The recipe skill's Rule 7 said recipes are project-specific and land in the worked-on repo — but a session's hardest-won paths turned out to be **agent-bound**, not codebase-bound: orienting on a PR stack, operating Linear MCP at scale, reconciling tickets with landed code. Those recur across every project, so no single worked-on repo is their home, and the distill pass as written only ran over execution graphs.
+The recipe skill's Rule 7 said recipes are project-specific and land in the worked-on repo — but a session's hardest-won paths turned out to be **agent-bound**, not codebase-bound: orienting on a PR stack, operating the tracker at scale, reconciling tickets with landed code. Those recur across every project, so no single worked-on repo is their home, and the distill pass as written only ran over execution graphs.
 
 ## Decision
 

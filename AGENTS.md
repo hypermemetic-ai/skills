@@ -8,7 +8,7 @@ does not depend on any external skills repo.
 ## Skill file convention
 
 - One skill = one `SKILL.md` under `skills/<skill-name>/`. Supporting files
-  (e.g. `BULK_OPS.md`) live in the same directory.
+  (e.g. `diagramming/lenses.md`) live in the same directory.
 - Frontmatter has exactly `name` and `description` (used by the harness for
   skill registration). `description` is one specific paragraph: when to use it
   and what it produces.

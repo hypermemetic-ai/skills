@@ -7,7 +7,7 @@ When `git worktree list` has grown past what the live work explains — after a 
 ### Mark — derive the live set (read-only)
 
 1. Census, one command: [`bin/worktree-census`](../../../bin/worktree-census) — every worktree → branch → ticket id (naming convention) → **open-PR relation** (`#N` = branch heads that PR, a live root; `⊂#N` = HEAD contained in that PR's branch, content live), with `PR-OPEN`/`COLLECT?`/`ARCHIVE?`/`RESCUE?` flags.
-2. Resolve the `?`s the script can't: ticket states via Linear MCP (`get_issue` per TICKET — no shell-usable Linear API keys today).
+2. Resolve the `?`s the script can't: ticket states by querying the tracker.
 3. For never-pushed branches that *look* like dead copies of landed work, run the **patch-equivalence check**: `git cherry <pushed-stack-ref> <head>` — `0` unique (`+`) commits proves the content is patch-contained in the stack, which downgrades `ARCHIVE?` → collect. (Commit-containment can't see this; `cherry` compares patches.)
 4. Build a **dossier per `RESCUE?` row** — the human can't ratify "dirty" in the abstract: unpushed-commit log (`git log --oneline origin/main..HEAD`), dirt inventory (`status --porcelain`, untracked included), and the head of any interesting file. Present each with a recommendation.
 
@@ -18,10 +18,10 @@ When `git worktree list` has grown past what the live work explains — after a 
 ### Sweep — execute the dispositions
 
 6. `RESCUE` worth saving → **the archive choreography, in this order** (so every artifact can reference the previous one):
-   1. create the Linear ticket (state it's an archive, where it's parked and why — "parked under M<N> because it needs a home, not because it's committed scope" is fine);
+   1. create the tracker ticket (state it's an archive, where it's parked and why — "parked under M<N> because it needs a home, not because it's committed scope" is fine);
    2. push the branch — for untracked-files-only rescues, branch from the worktree's HEAD, commit the files, push (an old detached base is fine: the PR diff shows just the new commit);
    3. `gh pr create` with the ticket id in the title and a body that says **"archive PR — opened to be closed; do not merge"** + recovery instructions; then `gh pr close` with a comment;
-   4. cancel the ticket **with the PR attached as a link** and the supersession pointer in the body;
+   4. archive the ticket **with the PR attached as a link** and the supersession pointer in the body;
    5. only now remove the worktree.
 7. `RESCUE` dropped without archive → the drop still gets **recorded on a live ticket** (a planning ticket's "prior art (dropped)" section naming the files) — never silent.
 8. Dangling-commit worktrees (clean, on no remote, no PR): local tag (`git tag archive/<name> <sha>`) before removal — belt-and-braces, no remote noise.
@@ -38,8 +38,8 @@ When `git worktree list` has grown past what the live work explains — after a 
 - Untracked files in a worktree are one cleanup from gone — *earned by:* deliberately-uncommitted conformance tests living untracked in a main checkout; a routine `git clean`/remove would have eaten them. Dirty-check means *untracked included* (`--porcelain` shows them).
 - A `locked` agent worktree may belong to a *running* agent — *earned by:* live sessions holding locked entries while background work was in flight; attribute before unlocking, never unlock-and-remove as one reflex.
 - The worktree pins its branch — you can't check the branch out elsewhere or delete it while the worktree exists — *earned by:* landed-stack branch deletion failing until the worktrees went first; order is worktrees → branches.
-- Ticket state is not derivable from git — the census can't be fully single-command — *earned by:* the shortcut attempt: branch names carry the ticket id, but resolving its state needs Linear, and there are **no shell-usable Linear API keys** today (MCP only). If API keys ever land, fold the `get_issue` lookup into `bin/worktree-census` and the `?` flags resolve themselves.
-- An archive isn't reachable if only git knows about it — *earned by:* the first run's rescues (CMD-418/PR #1022 rig, CMD-419/PR #1023 phi-downgrade tests): the canceled ticket + closed PR pair is what makes shelved work findable from Linear; a bare branch on origin is invisible.
+- Ticket state is not derivable from git — the census can't be fully single-command — *earned by:* the shortcut attempt: branch names carry the ticket id, but resolving its state needs the tracker. If the tracker becomes queryable from the census, fold that lookup into `bin/worktree-census` and the `?` flags resolve themselves.
+- An archive isn't reachable if only git knows about it — *earned by:* the first run's rescues (CMD-418/PR #1022 rig, CMD-419/PR #1023 phi-downgrade tests): the archived ticket + closed PR pair is what makes shelved work findable from the tracker; a bare branch on origin is invisible.
 
 ## Divergence notes
 *(append-only — when a later run diverges, record what and why)*

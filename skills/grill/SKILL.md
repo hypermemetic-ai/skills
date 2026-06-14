@@ -52,7 +52,7 @@ graph TD
 - **Live ADRs** for decisions that crystallize mid-grill and pass the earn-it test (`docs/adr/NNNN-slug.md`).
 - **Spike tickets** for unknowns neither the human nor the code could answer.
 
-All Linear writes follow the normal `Triage` / human-ratify flow.
+All tracker writes follow the normal **Pending** / human-ratify flow.
 
 ## Process
 

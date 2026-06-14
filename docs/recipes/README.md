@@ -7,7 +7,7 @@ A recipe is a **path**: a forward procedure with the gotchas baked in, each rule
 | The task is… | Recipe home |
 |---|---|
 | **project-bound** — touches one codebase's patterns (add a graph node, write a migration, a gRPC handler) | the worked-on repo's skills/docs area (e.g. `app-cm/.claude/skills/`) |
-| **agent-bound / method-bound** — running the method itself, independent of any one codebase (orienting on a PR stack, operating Linear at scale, reconciling tickets with landed code) | **this folder** (`per ADR _common/0004`) |
+| **agent-bound / method-bound** — running the method itself, independent of any one codebase (orienting on a PR stack, operating the tracker at scale, reconciling tickets with landed code) | **this folder** (`per ADR _common/0004`) |
 
 Distillation runs over *strictly agent-bound tasks* the same way it runs over execution graphs: when an agent task took non-obvious turns — wrong assumptions, dead ends, a mechanic discovered the hard way — that path distills here so the next session skips it.
 

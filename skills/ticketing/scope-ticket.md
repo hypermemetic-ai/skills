@@ -15,7 +15,7 @@ The exit test for the iteration — DDD's two load-bearing ideas (*ubiquitous la
 
 Fail any leg → another grill round. Pass all four → **stop iterating**: more scope detail past this point is execution work leaking upward.
 
-> **Lifecycle & state** live in [planning](../planning/SKILL.md) → "The milestone in Linear": `done` once it has spawned ≥1 work issue (never before — else the milestone reads complete with no work in it), and **never `canceled`** (canceled reads as abandoned; this is a living reference). *This doc is the body format; the body is the Linear description, iterated in place.*
+> **Lifecycle & state** live in [planning](../planning/SKILL.md) → "The milestone in the tracker": **done** once it has spawned ≥1 work ticket (never before — else the milestone reads complete with no work in it), and **never archived** (archived reads as abandoned; this is a living reference). *This doc is the body format; the body is the ticket body, iterated in place.*
 
 ## Required sections
 
@@ -67,7 +67,7 @@ The scope ticket carries the **shape and the contract** — what the milestone *
 | -- | -- | -- | -- |
 
 ## Dependencies
-<blocked-by / blocks>
+<dependency edges: what this milestone depends on / what depends on it>
 
 ## Execution
 The DAG and work tracking live in the execution ticket → <link>.
