@@ -46,7 +46,8 @@ A correctly-formed `synapse` invocation that reaches the intended method — or,
 - **Flags before the backend, always.** `synapse -j lforge …`, never `synapse lforge -j …`. The banner is the symptom of breaking this.
 - **Registered name, not product name.** Confirm against the bare-`synapse` registry table when unsure (hyperforge ⇒ `lforge`).
 - **Navigate, don't guess the leaf.** Reach a method through its namespace path from the hub root; "'X' at root" means you skipped a level.
-- **Let the backend tell you the shape.** `-i` for the method map, bare-call for the parameter spec — don't hand-author params from memory.
+- **Params are individual `--flags`, not a JSON blob.** Each parameter is its own `--kebab-case-flag value` after the method path (`--parent-id X --status active`, list flags repeat: `--tags a --tags b`). There is no need to assemble a `-p '{json}'` argument — reach for an inline `'{…}'` value only when a *single* param is itself a nested JSON object (e.g. `--meta-extra '{"k":"v"}'`). Treat synapse as a normal CLI.
+- **Let the backend tell you the shape.** `-i` for the method map, bare-call (or `--help`) for the parameter spec — don't hand-author params from memory.
 - **Respect the dirty-tree guard.** hyperforge `repos.pull` refuses a dirty working tree (`code: dirty_tree`); commit or stash first, or fall back to raw `git pull` (the sanctioned fallback when hyperforge has no clean equivalent). Default `--remote` is `origin` — pass the remote explicitly when the target isn't origin.
 - **This skill is invocation only.** Token/credential resolution and a backend's auth/domain rules are out of scope by design — keep them in the credential layer and the backend's own skill.
 
