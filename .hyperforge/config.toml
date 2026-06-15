@@ -1,9 +1,0 @@
-org = "hypermemetic-ai"
-forges = [
-    "codeberg",
-    "github",
-]
-visibility = "public"
-
-[ci]
-skip_validate = true
