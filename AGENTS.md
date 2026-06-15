@@ -1,5 +1,3 @@
-:warning: **This repo is currently being reorganized. Contents are in flux.**
-
 # skills
 
 General-purpose guidance and navigation for the hypermemetic-ai organization.
